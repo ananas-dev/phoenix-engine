@@ -7,7 +7,7 @@
 
 typedef uint64_t Bitboard;
 
-#define BB_USED               0x00FFFFFFFFFFFFFLL
+#define BB_USED               0xFFFFFFFFFFFFFFFLL
 #define BB_EMPTY              0x00000000000000ULL
 #define BB_FULL               0xFFFFFFFFFFFFFFULL
 #define BB_NOT_FIRST_RANK     0x00FFFFFFFFFFFFULL

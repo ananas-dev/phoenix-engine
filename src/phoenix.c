@@ -1,3 +1,4 @@
+#include "bitboard.h"
 #include <assert.h>
 #include <math.h>
 #include <stdbool.h>
@@ -5,12 +6,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "bitboard.h"
+
+#include <time.h>
 
 typedef struct {
     Bitboard captured;
-    Square from;
-    Square to;
+    uint8_t from;
+    uint8_t to;
 } Move;
 
 typedef struct {
@@ -314,7 +316,7 @@ static inline bool is_valid_destination(Square to, Square target, Bitboard combi
     Bitboard anti_wrap_mask = BB_FULL;
     if (sq_file(target) == FILE_A)
         anti_wrap_mask &= BB_NOT_H_FILE;
-    else if (sq_file(target) == FILE_B)
+    else if (sq_file(target) == FILE_H)
         anti_wrap_mask &= BB_NOT_A_FILE;
 
     return !bb_is_empty(bb_from_sq(to) & anti_wrap_mask & ~combined);
@@ -363,14 +365,10 @@ void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequence
     Square from = sequence.to;
     Bitboard attacks = king_attacks(from) & BB_USED;
 
-    // Add the capture mask of current sequence
-    Bitboard potential_captures_it = attacks & enemy_pieces & ~sequence.past_captures & BB_NOT_EDGE & BB_USED;
+    bool found_capture = false;
 
-    // If no capture
-    if (potential_captures_it == BB_EMPTY) {
-        store_final_sequence(sequence, capture_list);
-        return;
-    }
+    // Add the capture mask of current sequence
+    Bitboard potential_captures_it = attacks & enemy_pieces & ~sequence.past_captures & BB_USED;
 
     while (potential_captures_it) {
         Square target = bb_it_next(&potential_captures_it);
@@ -382,6 +380,8 @@ void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequence
             continue;
         }
 
+        found_capture = true;
+
         int new_value = calculate_capture_value(pos, target, color, sequence.value);
 
         CaptureSequence new_sequence = {.value = new_value,
@@ -391,6 +391,11 @@ void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequence
 
         find_king_captures(pos, new_sequence, capture_list);
     }
+
+    // If no capture
+    if (!found_capture) {
+        store_final_sequence(sequence, capture_list);
+    }
 }
 
 void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSequence capture_list[256]) {
@@ -399,16 +404,12 @@ void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSeque
 
     Color color = pos->side_to_move;
     Square from = sequence.to;
-    Bitboard attacks = general_attacks(from, enemy_pieces);
+    Bitboard attacks = general_attacks(from, combined);
+
+    bool found_capture = false;
 
     // Add the capture mask of current sequence
     Bitboard potential_captures_it = attacks & enemy_pieces & ~sequence.past_captures & BB_USED;
-
-    // If no capture
-    if (potential_captures_it == BB_EMPTY) {
-        store_final_sequence(sequence, capture_list);
-        return;
-    }
 
     while (potential_captures_it) {
         Square target = bb_it_next(&potential_captures_it);
@@ -439,6 +440,8 @@ void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSeque
 
         // For general, check multiple landing squares
         while (is_valid_destination(to, target, combined)) {
+            found_capture = true;
+
             int new_value = calculate_capture_value(pos, target, color, sequence.value);
 
             CaptureSequence new_sequence = {.value = new_value,
@@ -451,6 +454,11 @@ void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSeque
             to += direction;
         }
     }
+
+    // If no capture
+    if (!found_capture) {
+        store_final_sequence(sequence, capture_list);
+    }
 }
 
 void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSequence capture_list[256]) {
@@ -461,14 +469,10 @@ void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSeque
     Square from = sequence.to;
     Bitboard attacks = soldier_attacks(from) & BB_USED;
 
-    // Add the capture mask of current sequence
-    Bitboard potential_captures_it = attacks & enemy_pieces & ~sequence.past_captures & BB_NOT_EDGE & BB_USED;
+    bool found_capture = false;
 
-    // If no capture
-    if (potential_captures_it == BB_EMPTY) {
-        store_final_sequence(sequence, capture_list);
-        return;
-    }
+    // Add the capture mask of current sequence
+    Bitboard potential_captures_it = attacks & enemy_pieces & ~sequence.past_captures & BB_USED;
 
     while (potential_captures_it) {
         Square target = bb_it_next(&potential_captures_it);
@@ -480,6 +484,8 @@ void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSeque
             continue;
         }
 
+        found_capture = true;
+
         int new_value = calculate_capture_value(pos, target, color, sequence.value);
 
         CaptureSequence new_sequence = {.value = new_value,
@@ -489,12 +495,34 @@ void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSeque
 
         find_soldier_captures(pos, new_sequence, capture_list);
     }
+
+    // If no capture
+    if (!found_capture) {
+        store_final_sequence(sequence, capture_list);
+    }
 }
 
-MoveList legal_moves(Position *pos) {
-    // Do all the captures
-    // pos->
-    MoveList move_list = {0};
+void append_stacks(Position *pos, MoveList *move_list, Bitboard stack_targets) {
+    Color color = pos->side_to_move;
+    Bitboard soldier_it = pos->pieces[color][PIECE_SOLDIER] & BB_USED;
+
+    while (soldier_it) {
+        Square from = bb_it_next(&soldier_it);
+
+         Bitboard stacks_it = soldier_attacks(from) & stack_targets;
+
+        while (stacks_it) {
+            Square to = bb_it_next(&stacks_it);
+            move_list->moves[move_list->size++] = (Move) {
+                    .from = from,
+                    .to = to,
+                    .captured = BB_EMPTY,
+            };
+        }
+    }
+}
+
+void legal_moves(Position *pos, MoveList move_list[256]) {
     CaptureSequence capture_sequence_list[256] = {0};
 
     Color color = pos->side_to_move;
@@ -507,8 +535,24 @@ MoveList legal_moves(Position *pos) {
 
     Bitboard combined = my_pieces | enemy_pieces;
 
-    // Check for captures
+    // Setup phase
+    if (pos->ply < 10) {
+        Bitboard stacks_target;
 
+        // Only allow 1 king and 3 generals
+        if (bb_popcnt(pos->pieces[color][PIECE_KING]) == 1) {
+            stacks_target = pos->pieces[color][PIECE_SOLDIER];
+        } else if (bb_popcnt(pos->pieces[color][PIECE_GENERAL]) == 3) {
+            stacks_target = pos->pieces[color][PIECE_GENERAL];
+        } else {
+            stacks_target = pos->pieces[color][PIECE_SOLDIER] | pos->pieces[color][PIECE_GENERAL];
+        }
+
+        append_stacks(pos, move_list, stacks_target);
+        return;
+    }
+
+    // Check for captures
     {
         Bitboard kings_it = pos->pieces[color][PIECE_KING] & BB_USED;
         while (kings_it) {
@@ -542,7 +586,7 @@ MoveList legal_moves(Position *pos) {
     }
 
     {
-        Bitboard soldier_it = pos->pieces[color][PIECE_GENERAL] & BB_USED;
+        Bitboard soldier_it = pos->pieces[color][PIECE_SOLDIER] & BB_USED;
         while (soldier_it) {
             Square from = bb_it_next(&soldier_it);
 
@@ -580,7 +624,7 @@ MoveList legal_moves(Position *pos) {
                 break;
 
             if (sequence.value == max) {
-                move_list.moves[move_list.size++] = (Move) {
+                move_list->moves[move_list->size++] = (Move) {
                         .from = sequence.from,
                         .to = sequence.to,
                         .captured = sequence.past_captures,
@@ -589,12 +633,24 @@ MoveList legal_moves(Position *pos) {
         }
 
         if (max > 0) {
-            return move_list;
+            return;
         }
     }
 
-    // No captures were found, looking for normal moves
+    // No captures were found, looking for stack moves
+    if (pos->can_create_general) {
+        Bitboard stacks_target = pos->pieces[color][PIECE_SOLDIER];
+        append_stacks(pos, move_list, stacks_target);
+        return;
+    }
 
+    if (pos->can_create_king) {
+        Bitboard stacks_target = pos->pieces[color][PIECE_GENERAL];
+        append_stacks(pos, move_list, stacks_target);
+        return;
+    }
+
+    // Normal moves
     // FIXME: Can we guarantee that the superior bit are unused
     Bitboard kings_it = pos->pieces[color][PIECE_KING] & BB_USED;
     while (kings_it) {
@@ -603,7 +659,7 @@ MoveList legal_moves(Position *pos) {
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list.moves[move_list.size++] = (Move) {
+            move_list->moves[move_list->size++] = (Move) {
                     .from = from,
                     .to = to,
                     .captured = BB_EMPTY,
@@ -618,7 +674,7 @@ MoveList legal_moves(Position *pos) {
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list.moves[move_list.size++] = (Move) {
+            move_list->moves[move_list->size++] = (Move) {
                     .from = from,
                     .to = to,
                     .captured = BB_EMPTY,
@@ -633,37 +689,122 @@ MoveList legal_moves(Position *pos) {
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list.moves[move_list.size++] = (Move) {
+            move_list->moves[move_list->size++] = (Move) {
                     .from = from,
                     .to = to,
                     .captured = BB_EMPTY,
             };
         }
     }
+}
 
-    return move_list;
+Position position_from_fen(const char *fen_str) {
+    char *fen = malloc(strlen(fen_str) * sizeof(char));
+    strcpy(fen, fen_str);
+
+    char *board = strtok(fen, " ");
+    Position position = {0};
+
+    int curr_file = FILE_A;
+    int curr_rank = RANK_7;
+
+    for (int i = 0; i < strlen(board); i++) {
+        char x = board[i];
+
+        if (x == '/') {
+            curr_file = 0;
+            curr_rank--;
+        } else if (x >= '1' && x <= '9') {
+            curr_file += x - '0';
+        } else {
+            Color color;
+            Piece piece;
+
+            switch (x) {
+            case 'S':
+                piece = PIECE_SOLDIER;
+                color = COLOR_WHITE;
+                break;
+            case 'G':
+                piece = PIECE_GENERAL;
+                color = COLOR_WHITE;
+                break;
+            case 'K':
+                piece = PIECE_KING;
+                color = COLOR_WHITE;
+                break;
+            case 's':
+                piece = PIECE_SOLDIER;
+                color = COLOR_BLACK;
+                break;
+            case 'g':
+                piece = PIECE_GENERAL;
+                color = COLOR_BLACK;
+                break;
+            case 'k':
+                piece = PIECE_KING;
+                color = COLOR_BLACK;
+                break;
+            default:
+                assert(false && "Unknown piece in FEN");
+            }
+
+            position.pieces[color][piece] |= bb_from_sq(sq_get(curr_file, curr_rank));
+            curr_file++;
+        }
+
+    }
+
+    char *ply_str = strtok(NULL, " ");
+
+    // FIXME: Use strtol to report erros
+    position.ply = atoi(ply_str);
+
+    char *side_to_move_str = strtok(NULL, " ");
+
+    if (side_to_move_str[0] == 'w') {
+        position.side_to_move = COLOR_WHITE;
+    } else if (side_to_move_str[0] == 'b')  {
+        position.side_to_move = COLOR_BLACK;
+    } else {
+        assert(false && "Unknown side to move in FEN");
+    }
+
+    char *creation_flag  = strtok(NULL, " ");
+
+    if (creation_flag[0] == '1') {
+        position.can_create_general = true;
+    } else if (creation_flag[0] == '0')  {
+        position.can_create_general = false;
+    } else {
+        assert(false && "Invalid creation flag in FEN");
+    }
+
+    if (creation_flag[1] == '1') {
+        position.can_create_king = true;
+    } else if (creation_flag[1] == '0')  {
+        position.can_create_king = false;
+    } else {
+        assert(false && "Invalid creation flag in FEN");
+    }
+
+    free(fen);
+    return position;
 }
 
 void init() {
     init_leaper_attacks();
     init_slider_attacks();
+    srand(time(NULL));
+}
 
-    Position pos = (Position) {
-            .pieces = {0},
-            .ply = 15,
-            .side_to_move = COLOR_WHITE,
-    };
-
-    pos.pieces[COLOR_WHITE][PIECE_GENERAL] = bb_from_sq(SQ_E4);
-    pos.pieces[COLOR_BLACK][PIECE_SOLDIER] = bb_from_sq(SQ_E5);
-    pos.pieces[COLOR_BLACK][PIECE_SOLDIER] |= bb_from_sq(SQ_D6);
-    pos.pieces[COLOR_BLACK][PIECE_SOLDIER] |= bb_from_sq(SQ_A3);
-    pos.pieces[COLOR_BLACK][PIECE_SOLDIER] |= bb_from_sq(SQ_G2);
+void test() {
+    Position pos = position_from_fen("1SSSSS2/G2GS2s/1KSS2ss/SSS2sss/1S2g1ss/6G1/2sssg1g 11 b 01");
 
     position_print(&pos);
 
-    MoveList move_list = legal_moves(&pos);
-    printf("Move list size: %d\n", move_list.size);
+    MoveList move_list = {0};
+    legal_moves(&pos, &move_list);
 
     for (int i = 0; i < move_list.size; i++) {
         char from[3];
@@ -678,16 +819,17 @@ void init() {
         printf("  captures:\n");
         bb_print(move_list.moves[i].captured);
     }
-
-    // Bitboard attacks = general_attacks(SQ_E4, BB_EMPTY);
-    // bb_print(attacks);
-    //
-    // attacks = king_attacks(SQ_E4);
-    // bb_print(attacks);
-    //
-    // attacks = king_attacks(SQ_H7);
-    // bb_print(attacks);
 }
 
 
-void act(const char *position, double time_remaining) {}
+Move act(char *position, double time_remaining) {
+    Position pos = position_from_fen(position);
+
+    position_print(&pos);
+
+    MoveList move_list = {0};
+    legal_moves(&pos, &move_list);
+
+    Move move =  move_list.moves[rand() % move_list.size];
+    return move;
+}
