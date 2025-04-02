@@ -1,5 +1,6 @@
 #pragma once
 
-#include "core.h"
+#include "position.h"
 
-int alpha_beta();
+Move search(Position *position, int depth);
+int alpha_beta(Position *position, int depth, int alpha, int beta);

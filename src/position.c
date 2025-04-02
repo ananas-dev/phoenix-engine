@@ -4,20 +4,47 @@
 #include <assert.h>
 #include <string.h>
 
+Position make_null_move(Position *pos) {
+    Position new_pos = *pos;
+
+    new_pos.can_create_general = false;
+    new_pos.can_create_king = false;
+
+    new_pos.ply++;
+    new_pos.side_to_move = 1 - new_pos.side_to_move;
+
+    return new_pos;
+}
+
 Position make_move(Position *pos, Move move) {
     Color color = pos->side_to_move;
     Position new_pos = *pos;
+
+    new_pos.can_create_general = false;
+    new_pos.can_create_king = false;
 
     Bitboard from_mask = bb_from_sq(move.from);
     Bitboard to_mask = bb_from_sq(move.to);
     Bitboard captured_mask = move.captured;
 
-    for (Piece piece = PIECE_SOLDIER; piece <= PIECE_KING; piece++) {
-        if (new_pos.pieces[color][piece] & from_mask) {
-            new_pos.pieces[color][piece] ^= from_mask;
-            new_pos.pieces[color][piece] |= to_mask;
-            break;
+    if (new_pos.pieces[color][PIECE_SOLDIER] & from_mask) {
+        new_pos.pieces[color][PIECE_SOLDIER] ^= from_mask;
+
+        if (new_pos.pieces[color][PIECE_SOLDIER] & to_mask) {
+            new_pos.pieces[color][PIECE_GENERAL] |= to_mask;
+        } else if (new_pos.pieces[color][PIECE_GENERAL] & to_mask) {
+            new_pos.pieces[color][PIECE_KING] |= to_mask;
+        } else {
+            new_pos.pieces[color][PIECE_SOLDIER] |= to_mask;
         }
+    } else if (new_pos.pieces[color][PIECE_GENERAL] & from_mask) {
+        new_pos.pieces[color][PIECE_GENERAL] ^= from_mask;
+        new_pos.pieces[color][PIECE_GENERAL] |= to_mask;
+    } else if (new_pos.pieces[color][PIECE_KING] & from_mask) {
+        new_pos.pieces[color][PIECE_KING] ^= from_mask;
+        new_pos.pieces[color][PIECE_KING] |= to_mask;
+    } else {
+        assert(false && "Impossible move");
     }
 
     for (Piece piece = PIECE_SOLDIER; piece <= PIECE_KING; piece++) {
@@ -31,6 +58,9 @@ Position make_move(Position *pos, Move move) {
             }
         }
     }
+
+    new_pos.ply++;
+    new_pos.side_to_move = 1 - new_pos.side_to_move;
 
     return new_pos;
 }
