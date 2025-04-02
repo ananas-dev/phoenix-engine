@@ -13,7 +13,15 @@ typedef struct {
 } Position;
 
 
+static inline bool position_is_game_over(Position *pos) {
+    if (pos->ply >= 10) {
+        return !pos->can_create_king && bb_popcnt(pos->pieces[pos->side_to_move][PIECE_KING] & BB_USED) == 0;
+    }
+
+    return false;
+}
 
 Position make_move(Position *pos, Move move);
+Position make_null_move(Position *pos);
 Position position_from_fen(const char *fen_str);
 void position_print(Position *pos);

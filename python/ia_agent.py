@@ -109,6 +109,4 @@ class IAAgent(Agent):
             deleted.add((6 - deleted_rank, deleted_file))
 
         action = FenixAction((6 - src_rank, src_file), (6 - dst_rank, dst_file), frozenset(deleted))
-        print(state.actions())
-        print(action)
         return action

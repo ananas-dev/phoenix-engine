@@ -216,15 +216,15 @@ typedef struct {
     Bitboard past_captures;
 } CaptureSequence;
 
-// Helper function to check if a destination square is valid
-static inline bool is_valid_destination(Square to, Square target, Bitboard combined) {
-    Bitboard anti_wrap_mask = BB_FULL;
-    if (sq_file(target) == FILE_A)
-        anti_wrap_mask &= BB_NOT_H_FILE;
-    else if (sq_file(target) == FILE_H)
-        anti_wrap_mask &= BB_NOT_A_FILE;
+typedef struct {
+    int size;
+    CaptureSequence sequences[256];
+} CaptureSequenceList;
 
-    return !bb_is_empty(bb_from_sq(to) & anti_wrap_mask & ~combined);
+// Helper function to check if a destination square is valid
+static inline bool is_valid_destination(Square dest, Direction direction, Bitboard combined) {
+    Bitboard anti_wrap_mask = direction > 0 ? BB_NOT_A_FILE : BB_NOT_H_FILE;
+    return !bb_is_empty(bb_from_sq(dest) & anti_wrap_mask & ~combined);
 }
 
 // Helper function to calculate capture value
@@ -240,13 +240,16 @@ static inline int calculate_capture_value(Position *pos, Square target, Color co
 }
 
 // Helper function to store sequence in capture list if no more captures possible
-static inline void store_final_sequence(CaptureSequence sequence, CaptureSequence capture_list[256]) {
-    for (int i = 0; i < 256; i++) {
-        if (capture_list[i].value < sequence.value) {
-            capture_list[i] = sequence;
+static inline void store_final_sequence(CaptureSequence sequence, CaptureSequenceList *capture_list) {
+    for (int i = 0; i < capture_list->size; i++) {
+        if (capture_list->sequences[i].value < sequence.value) {
+            capture_list->sequences[i] = sequence;
             return;
         }
     }
+
+    // If no captures were overwritten
+    capture_list->sequences[capture_list->size++] = sequence;
 }
 
 // Common setup logic for all capture functions
@@ -262,7 +265,7 @@ static inline void setup_capture_search(Position *pos, Bitboard *my_pieces, Bitb
     *combined = *my_pieces | *enemy_pieces;
 }
 
-void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequence capture_list[256]) {
+void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequenceList *capture_list) {
     Bitboard my_pieces, enemy_pieces, combined;
     setup_capture_search(pos, &my_pieces, &enemy_pieces, &combined);
 
@@ -281,7 +284,7 @@ void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequence
         Square to = target + direction;
 
         // Check if destination is valid
-        if (!is_valid_destination(to, target, combined)) {
+        if (!is_valid_destination(to, direction, combined)) {
             continue;
         }
 
@@ -303,7 +306,7 @@ void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequence
     }
 }
 
-void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSequence capture_list[256]) {
+void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSequenceList *capture_list) {
     Bitboard my_pieces, enemy_pieces, combined;
     setup_capture_search(pos, &my_pieces, &enemy_pieces, &combined);
 
@@ -344,7 +347,7 @@ void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSeque
         Square to = target + direction;
 
         // For general, check multiple landing squares
-        while (is_valid_destination(to, target, combined)) {
+        while (is_valid_destination(to, direction, combined)) {
             found_capture = true;
 
             int new_value = calculate_capture_value(pos, target, color, sequence.value);
@@ -366,7 +369,7 @@ void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSeque
     }
 }
 
-void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSequence capture_list[256]) {
+void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSequenceList *capture_list) {
     Bitboard my_pieces, enemy_pieces, combined;
     setup_capture_search(pos, &my_pieces, &enemy_pieces, &combined);
 
@@ -385,7 +388,7 @@ void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSeque
         Square to = target + direction;
 
         // Check if destination is valid
-        if (!is_valid_destination(to, target, combined)) {
+        if (!is_valid_destination(to, direction, combined)) {
             continue;
         }
 
@@ -428,7 +431,7 @@ void append_stacks(Position *pos, MoveList *move_list, Bitboard stack_targets) {
 }
 
 void legal_moves(Position *pos, MoveList *move_list) {
-    CaptureSequence capture_sequence_list[256] = {0};
+    CaptureSequenceList capture_sequence_list = {0};
 
     Color color = pos->side_to_move;
 
@@ -470,7 +473,7 @@ void legal_moves(Position *pos, MoveList *move_list) {
                     .to = from,
             };
 
-            find_king_captures(pos, sequence, capture_sequence_list);
+            find_king_captures(pos, sequence, &capture_sequence_list);
         }
     }
 
@@ -486,7 +489,7 @@ void legal_moves(Position *pos, MoveList *move_list) {
                     .to = from,
             };
 
-            find_general_captures(pos, sequence, capture_sequence_list);
+            find_general_captures(pos, sequence, &capture_sequence_list);
         }
     }
 
@@ -502,31 +505,25 @@ void legal_moves(Position *pos, MoveList *move_list) {
                     .to = from,
             };
 
-            find_soldier_captures(pos, sequence, capture_sequence_list);
+            find_soldier_captures(pos, sequence, &capture_sequence_list);
         }
     }
 
     // Find the longest capture sequence(s)
     {
         int max = 0;
-        for (int i = 0; i < 256; i++) {
-            CaptureSequence sequence = capture_sequence_list[i];
-
-            if (sequence.value == 0)
-                break;
+        for (int i = 0; i < capture_sequence_list.size; i++) {
+            CaptureSequence sequence = capture_sequence_list.sequences[i];
 
             if (sequence.value > max) {
-                max = capture_sequence_list[i].value;
+                max = sequence.value;
             }
         }
 
         // Append legal capture sequences to legal moves
 
-        for (int i = 0; i < 256; i++) {
-            CaptureSequence sequence = capture_sequence_list[i];
-
-            if (sequence.value == 0)
-                break;
+        for (int i = 0; i < capture_sequence_list.size; i++) {
+            CaptureSequence sequence = capture_sequence_list.sequences[i];
 
             if (sequence.value == max) {
                 move_list->moves[move_list->size++] = (Move) {
