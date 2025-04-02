@@ -3,7 +3,7 @@ import ctypes
 import random
 from fenix import FenixAction
 
-def bb_it_next(b: int) -> (int, int):
+def bb_it_next(b):
     if b == 0:
         raise ValueError("Bitboard is empty")
 

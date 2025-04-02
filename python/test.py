@@ -1,12 +1,15 @@
-# import visual_game_manager
-# import random_agent
-#
-# manager = visual_game_manager.VisualGameManager(
-#     black_agent=random_agent.RandomAgent(1),
-# )
-#
-# manager.play()
-
 import ia_agent
+import game_manager
+import random_agent
 
-agent = ia_agent.IAAgent(0)
+agent1 = ia_agent.IAAgent(0)
+agent2 = random_agent.RandomAgent(1)
+
+manager = game_manager.TextGameManager(
+    agent_1=agent1,
+    agent_2=agent2,
+)
+
+for x in range(5000):
+    print(f"-- GAME {x} --")
+    manager.play()

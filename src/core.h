@@ -60,12 +60,22 @@ typedef enum {
 
 static inline int sq_file(Square sq) {
     return sq & 7;
-};
+}
 
 static inline int sq_rank(Square sq) {
     return sq >> 3;
-};
+}
 
 static inline int sq_get(File file, Rank rank) {
     return 8 * rank + file;
-};
+}
+
+static inline void sq_to_string(Square sq, char str[3]) {
+    int rank = sq_rank(sq);
+    int file = sq_file(sq);
+
+    str[0] = 'a' + (char) file;
+    str[1] = '1' + (char) rank;
+    str[2] = '\0';
+}
+

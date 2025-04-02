@@ -20,8 +20,23 @@ typedef uint64_t Bitboard;
 #define BB_NOT_H_FILE         0x7F7F7F7F7F7F7FULL
 #define BB_NOT_EDGE           (BB_NOT_A_FILE & BB_NOT_H_FILE & BB_NOT_FIRST_RANK & BB_NOT_SEVENTH_RANK)
 
-bool bb_is_empty(Bitboard bb);
-Square bb_it_next(Bitboard* bb);
-Bitboard bb_from_sq(Square sq);
-int bb_popcnt(Bitboard x);
 void bb_print(Bitboard bb);
+
+static inline __attribute__((always_inline)) bool bb_is_empty(Bitboard bb) {
+  return (bb & BB_USED) == BB_EMPTY;
+}
+
+static inline __attribute__((always_inline)) Bitboard bb_from_sq(Square sq) {
+  return 1ULL << sq;
+};
+
+static inline __attribute__((always_inline)) Square bb_it_next(Bitboard* b) {
+  Square s = __builtin_ctzll(*b);
+  *b &= *b - 1;
+  return s;
+}
+
+static inline __attribute__((always_inline)) int bb_popcnt(Bitboard x) {
+  return __builtin_popcountll(x);
+}
+
