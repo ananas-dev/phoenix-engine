@@ -248,6 +248,11 @@ static inline int calculate_capture_value(Position *pos, Square target, Color co
 
 // Helper function to store sequence in capture list if no more captures possible
 static inline void store_final_sequence(CaptureSequence sequence, CaptureSequenceList *capture_list) {
+    // Skip empty sequences
+    if (sequence.from == sequence.to) {
+        return;
+    }
+
     for (int i = 0; i < capture_list->size; i++) {
         if (capture_list->sequences[i].value < sequence.value) {
             capture_list->sequences[i] = sequence;
