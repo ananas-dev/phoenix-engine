@@ -38,11 +38,11 @@ typedef enum {
     DIR_EAST = 1,
     DIR_NOEA = 9,
     DIR_NORT = 8,
-    DIR_SOEA = 7,
+    DIR_SOEA = -7,
     DIR_WEST = -1,
     DIR_SOWE = -9,
     DIR_SOUT = -8,
-    DIR_NOWE = -7,
+    DIR_NOWE = 7,
 } Direction;
 
 typedef enum {

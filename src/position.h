@@ -10,8 +10,10 @@ typedef struct {
     Color side_to_move;
     bool can_create_general;
     bool can_create_king;
+    uint64_t hash;
 } Position;
 
+void position_init();
 
 static inline bool position_is_game_over(Position *pos) {
     if (pos->ply >= 10) {

@@ -194,10 +194,10 @@ void init_slider_attacks() {
             }
 
             Magic entry = {
-                    .mask = mask,
-                    .magic = magic,
-                    .offset = 64 - index_bits,
-                    .ptr = ptr,
+                .mask = mask,
+                .magic = magic,
+                .offset = 64 - index_bits,
+                .ptr = ptr,
             };
 
             if (try_magic(sq, &entry)) {
@@ -223,7 +223,14 @@ typedef struct {
 
 // Helper function to check if a destination square is valid
 static inline bool is_valid_destination(Square dest, Direction direction, Bitboard combined) {
-    Bitboard anti_wrap_mask = direction > 0 ? BB_NOT_A_FILE : BB_NOT_H_FILE;
+    Bitboard anti_wrap_mask = BB_FULL;
+
+    if (direction == DIR_EAST || direction == DIR_NOEA || direction == DIR_SOEA) {
+        anti_wrap_mask &= BB_NOT_A_FILE;
+    } else if (direction == DIR_WEST || direction == DIR_NOWE || direction == DIR_SOWE)  {
+        anti_wrap_mask &= BB_NOT_H_FILE;
+    }
+
     return !bb_is_empty(bb_from_sq(dest) & anti_wrap_mask & ~combined);
 }
 
@@ -292,10 +299,12 @@ void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequence
 
         int new_value = calculate_capture_value(pos, target, color, sequence.value);
 
-        CaptureSequence new_sequence = {.value = new_value,
-                                        .from = sequence.from,
-                                        .to = to,
-                                        .past_captures = sequence.past_captures | bb_from_sq(target)};
+        CaptureSequence new_sequence = {
+            .value = new_value,
+            .from = sequence.from,
+            .to = to,
+            .past_captures = sequence.past_captures | bb_from_sq(target)
+        };
 
         find_king_captures(pos, new_sequence, capture_list);
     }
@@ -352,10 +361,12 @@ void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSeque
 
             int new_value = calculate_capture_value(pos, target, color, sequence.value);
 
-            CaptureSequence new_sequence = {.value = new_value,
-                                            .from = sequence.from,
-                                            .to = to,
-                                            .past_captures = sequence.past_captures | bb_from_sq(target)};
+            CaptureSequence new_sequence = {
+                .value = new_value,
+                .from = sequence.from,
+                .to = to,
+                .past_captures = sequence.past_captures | bb_from_sq(target)
+            };
 
             find_general_captures(pos, new_sequence, capture_list);
 
@@ -396,10 +407,12 @@ void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSeque
 
         int new_value = calculate_capture_value(pos, target, color, sequence.value);
 
-        CaptureSequence new_sequence = {.value = new_value,
-                                        .from = sequence.from,
-                                        .to = to,
-                                        .past_captures = sequence.past_captures | bb_from_sq(target)};
+        CaptureSequence new_sequence = {
+            .value = new_value,
+            .from = sequence.from,
+            .to = to,
+            .past_captures = sequence.past_captures | bb_from_sq(target)
+        };
 
         find_soldier_captures(pos, new_sequence, capture_list);
     }
@@ -421,10 +434,10 @@ void append_stacks(Position *pos, MoveList *move_list, Bitboard stack_targets) {
 
         while (stacks_it) {
             Square to = bb_it_next(&stacks_it);
-            move_list->moves[move_list->size++] = (Move) {
-                    .from = from,
-                    .to = to,
-                    .captured = BB_EMPTY,
+            move_list->moves[move_list->size++] = (Move){
+                .from = from,
+                .to = to,
+                .captured = BB_EMPTY,
             };
         }
     }
@@ -467,42 +480,38 @@ void legal_moves(Position *pos, MoveList *move_list) {
             Square from = bb_it_next(&kings_it);
 
             CaptureSequence sequence = {
-                    .value = 0,
-                    .past_captures = BB_EMPTY,
-                    .from = from,
-                    .to = from,
+                .value = 0,
+                .past_captures = BB_EMPTY,
+                .from = from,
+                .to = from,
             };
 
             find_king_captures(pos, sequence, &capture_sequence_list);
         }
-    }
-
-    {
+    } {
         Bitboard general_it = pos->pieces[color][PIECE_GENERAL] & BB_USED;
         while (general_it) {
             Square from = bb_it_next(&general_it);
 
             CaptureSequence sequence = {
-                    .value = 0,
-                    .past_captures = BB_EMPTY,
-                    .from = from,
-                    .to = from,
+                .value = 0,
+                .past_captures = BB_EMPTY,
+                .from = from,
+                .to = from,
             };
 
             find_general_captures(pos, sequence, &capture_sequence_list);
         }
-    }
-
-    {
+    } {
         Bitboard soldier_it = pos->pieces[color][PIECE_SOLDIER] & BB_USED;
         while (soldier_it) {
             Square from = bb_it_next(&soldier_it);
 
             CaptureSequence sequence = {
-                    .value = 0,
-                    .past_captures = BB_EMPTY,
-                    .from = from,
-                    .to = from,
+                .value = 0,
+                .past_captures = BB_EMPTY,
+                .from = from,
+                .to = from,
             };
 
             find_soldier_captures(pos, sequence, &capture_sequence_list);
@@ -526,10 +535,10 @@ void legal_moves(Position *pos, MoveList *move_list) {
             CaptureSequence sequence = capture_sequence_list.sequences[i];
 
             if (sequence.value == max) {
-                move_list->moves[move_list->size++] = (Move) {
-                        .from = sequence.from,
-                        .to = sequence.to,
-                        .captured = sequence.past_captures,
+                move_list->moves[move_list->size++] = (Move){
+                    .from = sequence.from,
+                    .to = sequence.to,
+                    .captured = sequence.past_captures,
                 };
             }
         }
@@ -559,10 +568,10 @@ void legal_moves(Position *pos, MoveList *move_list) {
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list->moves[move_list->size++] = (Move) {
-                    .from = from,
-                    .to = to,
-                    .captured = BB_EMPTY,
+            move_list->moves[move_list->size++] = (Move){
+                .from = from,
+                .to = to,
+                .captured = BB_EMPTY,
             };
         }
     }
@@ -574,10 +583,10 @@ void legal_moves(Position *pos, MoveList *move_list) {
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list->moves[move_list->size++] = (Move) {
-                    .from = from,
-                    .to = to,
-                    .captured = BB_EMPTY,
+            move_list->moves[move_list->size++] = (Move){
+                .from = from,
+                .to = to,
+                .captured = BB_EMPTY,
             };
         }
     }
@@ -589,10 +598,10 @@ void legal_moves(Position *pos, MoveList *move_list) {
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list->moves[move_list->size++] = (Move) {
-                    .from = from,
-                    .to = to,
-                    .captured = BB_EMPTY,
+            move_list->moves[move_list->size++] = (Move){
+                .from = from,
+                .to = to,
+                .captured = BB_EMPTY,
             };
         }
     }
@@ -602,4 +611,3 @@ void movegen_init() {
     init_leaper_attacks();
     init_slider_attacks();
 }
-
