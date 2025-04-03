@@ -6,15 +6,17 @@
 #include "position.h"
 #include "time.h"
 #include "search.h"
+#include "tt.h"
 
 void init() {
     movegen_init();
     position_init();
+    tt_init(65536); // 2 ^ 16
     srand(time(NULL));
 }
 
 void test() {
-    Position pos = position_from_fen("K1GS4/GG1SS3/2SS3S/1SS5/SS6/S2s3g/5gs1 49 b 11");
+    Position pos = position_from_fen("GSSSSS2/1SSSS2s/SSSS2ss/SSS2sss/SS2ssss/S2sssss/2ssssss 1 b 00");
 
     position_print(&pos);
 

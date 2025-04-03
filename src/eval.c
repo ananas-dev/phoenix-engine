@@ -12,8 +12,7 @@ int eval(Position *position) {
     int num_black_general = bb_popcnt(position->pieces[COLOR_BLACK][PIECE_GENERAL]);
     int num_black_king = bb_popcnt(position->pieces[COLOR_BLACK][PIECE_KING]);
 
-    int material_score = + 1000 * (num_white_king - num_black_king)
-                         + 500 * (num_white_general - num_black_general)
+    int material_score = 900 * (num_white_general - num_black_general)
                          + 100 * (num_white_solider - num_black_solider);
 
     MoveList move_list = {0};
@@ -25,7 +24,11 @@ int eval(Position *position) {
     legal_moves(&black_pov, &move_list);
     int num_black_legal_move = move_list.size;
 
-    int mobility_score = 10 * (num_white_legal_move - num_black_legal_move);
+    int mobility_score = 5 * (num_white_legal_move - num_black_legal_move);
+
+    if (position->ply < 10) {
+        return mobility_score * turn;
+    }
 
     return (material_score + mobility_score) * turn;
 };
