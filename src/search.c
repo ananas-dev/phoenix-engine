@@ -195,7 +195,7 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
     sort_move_list(&move_list);
 
     if (move_list.size == 0) {
-        return 0; // draw
+        return -INF + position->ply;
     }
 
     int best_value = -INF;
