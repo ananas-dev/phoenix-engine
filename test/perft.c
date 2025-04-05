@@ -14,9 +14,16 @@ void start_position() {
     TEST_ASSERT_EQUAL(num_nodes, 185400);
 }
 
+void tactical_position() {
+    Position pos = position_from_fen("1G1SK3/G7/S1S4k/SSSS2g1/SS2ssgs/S2ssgs1/2ssssss 22 w 10");
+    uint64_t num_nodes = perft(&pos, 4, false);
+    TEST_ASSERT_EQUAL(num_nodes, 329941);
+}
+
 
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(start_position);
+    RUN_TEST(tactical_position);
     return UNITY_END();
 }

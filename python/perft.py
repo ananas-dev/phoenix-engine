@@ -1,5 +1,6 @@
 import fenix
-from python.fenix import FenixAction
+import fen_utils
+from fenix import FenixAction
 
 def state_to_fen(state):
     """
@@ -69,13 +70,13 @@ def perft(state: fenix.FenixState, depth):
         return 1
 
     num_nodes = 0
-    for action in state.actions():
+    for action in frozenset(state.actions()):
         src = chr(ord("a") + action.start[1]) + chr(ord("7") - action.start[0])
         dst = chr(ord("a") + action.end[1]) + chr(ord("7") - action.end[0])
 
         move_num_nodes = perft_aux(state.result(action), depth - 1)
 
-        if src == "h1" and dst == "h2":
+        if src == "d4" and dst == "d3":
             print(action)
 
         print(f"{src}-{dst}: {move_num_nodes}")
@@ -89,14 +90,13 @@ def perft_aux(state: fenix.FenixState, depth):
         return 1
 
     num_nodes = 0
-    for action in state.actions():
+    for action in frozenset(state.actions()):
         num_nodes += perft_aux(state.result(action), depth - 1)
 
     return num_nodes
 
 if __name__ == "__main__":
-    state = fenix.FenixState()
-    # state = state.result(FenixAction(start=(2, 3), end=(1, 3), removed=frozenset()))
-    # state = state.result(FenixAction(start=(6, 7), end=(5, 7), removed=frozenset()))
+    state = fen_utils.fen_to_state("1G1SK3/G7/S1S4k/SSSS2g1/SS2ssgs/S2ssgs1/2ssssss 22 w 10")
+    # state = state.result(FenixAction(start=(3, 3), end=(4, 3), removed=frozenset()))
     print(state_to_fen(state))
-    print(perft(state, 3))
+    print(perft(state, 4))
