@@ -33,7 +33,7 @@ int tt_get(Position *position, uint8_t depth, int alpha, int beta) {
                 return entry->val;
             }
 
-            if ((entry->type == ENTRY_TYPE_ALPHA) && (entry->val <= alpha)) {
+            if ((entry->type == ENTRY_TYPE_ALPHA) && (entry->val < alpha)) {
                 return alpha;
             }
 

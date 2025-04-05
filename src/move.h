@@ -3,7 +3,7 @@
 #include "bitboard.h"
 
 typedef struct {
-    Bitboard captured;
+    Bitboard captures;
     uint8_t from;
     uint8_t to;
 } Move;

@@ -1,7 +1,8 @@
 #include "movegen.h"
-#include <stdlib.h>
-#include <string.h>
+
 #include <assert.h>
+#include <stdio.h>
+#include <string.h>
 
 static uint64_t random_u64() {
     static uint64_t number = 0xFFAAB58C5833FE89;
@@ -210,15 +211,16 @@ void init_slider_attacks() {
 }
 
 typedef struct {
+    Bitboard past_captures;
     int value;
     Square from;
     Square to;
-    Bitboard past_captures;
 } CaptureSequence;
 
 typedef struct {
     int size;
-    CaptureSequence sequences[256];
+    int max_value;
+    CaptureSequence sequences[64];
 } CaptureSequenceList;
 
 // Helper function to check if a destination square is valid
@@ -227,7 +229,7 @@ static inline bool is_valid_destination(Square dest, Direction direction, Bitboa
 
     if (direction == DIR_EAST || direction == DIR_NOEA || direction == DIR_SOEA) {
         anti_wrap_mask &= BB_NOT_A_FILE;
-    } else if (direction == DIR_WEST || direction == DIR_NOWE || direction == DIR_SOWE)  {
+    } else if (direction == DIR_WEST || direction == DIR_NOWE || direction == DIR_SOWE) {
         anti_wrap_mask &= BB_NOT_H_FILE;
     }
 
@@ -247,21 +249,19 @@ static inline int calculate_capture_value(Position *pos, Square target, Color co
 }
 
 // Helper function to store sequence in capture list if no more captures possible
-static inline void store_final_sequence(CaptureSequence sequence, CaptureSequenceList *capture_list) {
+static inline void insert_sequence(CaptureSequence sequence, CaptureSequenceList *capture_list) {
     // Skip empty sequences
     if (sequence.from == sequence.to) {
         return;
     }
 
-    for (int i = 0; i < capture_list->size; i++) {
-        if (capture_list->sequences[i].value < sequence.value) {
-            capture_list->sequences[i] = sequence;
-            return;
-        }
+    if (capture_list->max_value == 0 || sequence.value > capture_list->max_value) {
+        capture_list->max_value = sequence.value;
+        capture_list->size = 1;
+        capture_list->sequences[0] = sequence;
+    } else if (sequence.value == capture_list->max_value) {
+        capture_list->sequences[capture_list->size++] = sequence;
     }
-
-    // If no captures were overwritten
-    capture_list->sequences[capture_list->size++] = sequence;
 }
 
 // Common setup logic for all capture functions
@@ -316,7 +316,7 @@ void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequence
 
     // If no capture
     if (!found_capture) {
-        store_final_sequence(sequence, capture_list);
+        insert_sequence(sequence, capture_list);
     }
 }
 
@@ -381,7 +381,7 @@ void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSeque
 
     // If no capture
     if (!found_capture) {
-        store_final_sequence(sequence, capture_list);
+        insert_sequence(sequence, capture_list);
     }
 }
 
@@ -424,7 +424,7 @@ void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSeque
 
     // If no capture
     if (!found_capture) {
-        store_final_sequence(sequence, capture_list);
+        insert_sequence(sequence, capture_list);
     }
 }
 
@@ -442,7 +442,7 @@ void append_stacks(Position *pos, MoveList *move_list, Bitboard stack_targets) {
             move_list->moves[move_list->size++] = (Move){
                 .from = from,
                 .to = to,
-                .captured = BB_EMPTY,
+                .captures = BB_EMPTY,
             };
         }
     }
@@ -463,15 +463,14 @@ void legal_moves(Position *pos, MoveList *move_list) {
 
     // Setup phase
     if (pos->ply < 10) {
-        Bitboard stacks_target;
+        Bitboard stacks_target = BB_EMPTY;
 
-        // Only allow 1 king and 3 generals
-        if (bb_popcnt(pos->pieces[color][PIECE_KING]) == 1) {
-            stacks_target = pos->pieces[color][PIECE_SOLDIER];
-        } else if (bb_popcnt(pos->pieces[color][PIECE_GENERAL]) == 4) {
-            stacks_target = pos->pieces[color][PIECE_GENERAL];
-        } else {
-            stacks_target = pos->pieces[color][PIECE_SOLDIER] | pos->pieces[color][PIECE_GENERAL];
+        if (bb_popcnt(pos->pieces[color][PIECE_GENERAL]) < 4) {
+            stacks_target |= pos->pieces[color][PIECE_SOLDIER];
+        }
+
+        if (bb_popcnt(pos->pieces[color][PIECE_KING]) == 0) {
+            stacks_target |= pos->pieces[color][PIECE_GENERAL];
         }
 
         append_stacks(pos, move_list, stacks_target);
@@ -523,34 +522,19 @@ void legal_moves(Position *pos, MoveList *move_list) {
         }
     }
 
-    // Find the longest capture sequence(s)
-    {
-        int max = 0;
-        for (int i = 0; i < capture_sequence_list.size; i++) {
-            CaptureSequence sequence = capture_sequence_list.sequences[i];
+    // Append captures
+    for (int i = 0; i < capture_sequence_list.size; i++) {
+        CaptureSequence sequence = capture_sequence_list.sequences[i];
 
-            if (sequence.value > max) {
-                max = sequence.value;
-            }
-        }
+        move_list->moves[move_list->size++] = (Move){
+            .from = sequence.from,
+            .to = sequence.to,
+            .captures = sequence.past_captures,
+        };
+    }
 
-        // Append legal capture sequences to legal moves
-
-        for (int i = 0; i < capture_sequence_list.size; i++) {
-            CaptureSequence sequence = capture_sequence_list.sequences[i];
-
-            if (sequence.value == max) {
-                move_list->moves[move_list->size++] = (Move){
-                    .from = sequence.from,
-                    .to = sequence.to,
-                    .captured = sequence.past_captures,
-                };
-            }
-        }
-
-        if (max > 0) {
-            return;
-        }
+    if (capture_sequence_list.size > 0) {
+        return;
     }
 
     // No captures were found, looking for stack moves
@@ -576,7 +560,7 @@ void legal_moves(Position *pos, MoveList *move_list) {
             move_list->moves[move_list->size++] = (Move){
                 .from = from,
                 .to = to,
-                .captured = BB_EMPTY,
+                .captures = BB_EMPTY,
             };
         }
     }
@@ -591,7 +575,7 @@ void legal_moves(Position *pos, MoveList *move_list) {
             move_list->moves[move_list->size++] = (Move){
                 .from = from,
                 .to = to,
-                .captured = BB_EMPTY,
+                .captures = BB_EMPTY,
             };
         }
     }
@@ -606,10 +590,58 @@ void legal_moves(Position *pos, MoveList *move_list) {
             move_list->moves[move_list->size++] = (Move){
                 .from = from,
                 .to = to,
-                .captured = BB_EMPTY,
+                .captures = BB_EMPTY,
             };
         }
     }
+}
+
+uint64_t perft_aux(Position *position, int depth) {
+    if (depth == 0 || position_is_game_over(position)) {
+        return 1ULL;
+    }
+
+    MoveList move_list = {0};
+    legal_moves(position, &move_list);
+
+    uint64_t num_nodes = 0;
+
+    for (int i = 0; i < move_list.size; i++) {
+        Position new_position = make_move(position, move_list.moves[i]);
+        num_nodes += perft_aux(&new_position, depth - 1);
+    }
+
+    return num_nodes;
+}
+
+
+uint64_t perft(Position *position, int depth) {
+    if (depth == 0 || position_is_game_over(position)) {
+        return 1ULL;
+    }
+
+    MoveList move_list = {0};
+    legal_moves(position, &move_list);
+
+    uint64_t num_nodes = 0;
+
+    char from[3];
+    char to[3];
+
+    for (int i = 0; i < move_list.size; i++) {
+        Position new_position = make_move(position, move_list.moves[i]);
+
+        sq_to_string(move_list.moves[i].from, from);
+        sq_to_string(move_list.moves[i].to, to);
+
+        uint64_t move_num_nodes = perft_aux(&new_position, depth - 1);
+
+        printf("%s-%s: %lu\n", from, to, move_num_nodes);
+
+        num_nodes += move_num_nodes;
+    }
+
+    return num_nodes;
 }
 
 void movegen_init() {

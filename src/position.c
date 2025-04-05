@@ -92,7 +92,7 @@ Position make_move(Position *pos, Move move) {
 
     Bitboard from_mask = bb_from_sq(move.from);
     Bitboard to_mask = bb_from_sq(move.to);
-    Bitboard captured_mask = move.captured;
+    Bitboard captured_mask = move.captures;
 
     if (new_pos.pieces[color][PIECE_SOLDIER] & from_mask) {
         // Remove soldier from old square
@@ -101,10 +101,14 @@ Position make_move(Position *pos, Move move) {
 
         // Handle stacking
         if (new_pos.pieces[color][PIECE_SOLDIER] & to_mask) {
+            new_pos.pieces[color][PIECE_SOLDIER] ^= to_mask;
             new_pos.pieces[color][PIECE_GENERAL] |= to_mask;
+            new_pos.hash ^= zobrists.pieces[color][PIECE_SOLDIER][move.to];
             new_pos.hash ^= zobrists.pieces[color][PIECE_GENERAL][move.to];
         } else if (new_pos.pieces[color][PIECE_GENERAL] & to_mask) {
+            new_pos.pieces[color][PIECE_GENERAL] ^= to_mask;
             new_pos.pieces[color][PIECE_KING] |= to_mask;
+            new_pos.hash ^= zobrists.pieces[color][PIECE_GENERAL][move.to];
             new_pos.hash ^= zobrists.pieces[color][PIECE_KING][move.to];
         } else {
             new_pos.pieces[color][PIECE_SOLDIER] |= to_mask;
@@ -126,6 +130,12 @@ Position make_move(Position *pos, Move move) {
 
     for (Piece piece = PIECE_SOLDIER; piece <= PIECE_KING; piece++) {
         if (new_pos.pieces[1 - color][piece] & captured_mask) {
+            Bitboard captured_it = new_pos.pieces[1 - color][piece] & captured_mask;
+            while (captured_it) {
+                Square square = bb_it_next(&captured_it);
+                new_pos.hash ^= zobrists.pieces[1 - color][piece][square];
+            }
+
             new_pos.pieces[1 - color][piece] &= ~captured_mask;
 
             if (piece == PIECE_GENERAL) {
@@ -138,12 +148,6 @@ Position make_move(Position *pos, Move move) {
                     new_pos.can_create_king = true;
                     new_pos.hash ^= zobrists.can_create_king;
                 }
-            }
-
-            Bitboard captured_it = captured_mask;
-            while (captured_it) {
-                Square square = bb_it_next(&captured_it);
-                new_pos.hash ^= zobrists.pieces[1-color][piece][square];
             }
         }
     }
@@ -179,38 +183,37 @@ Position position_from_fen(const char *fen_str) {
             Piece piece;
 
             switch (x) {
-            case 'S':
-                piece = PIECE_SOLDIER;
-                color = COLOR_WHITE;
-                break;
-            case 'G':
-                piece = PIECE_GENERAL;
-                color = COLOR_WHITE;
-                break;
-            case 'K':
-                piece = PIECE_KING;
-                color = COLOR_WHITE;
-                break;
-            case 's':
-                piece = PIECE_SOLDIER;
-                color = COLOR_BLACK;
-                break;
-            case 'g':
-                piece = PIECE_GENERAL;
-                color = COLOR_BLACK;
-                break;
-            case 'k':
-                piece = PIECE_KING;
-                color = COLOR_BLACK;
-                break;
-            default:
-                assert(false && "Unknown piece in FEN");
+                case 'S':
+                    piece = PIECE_SOLDIER;
+                    color = COLOR_WHITE;
+                    break;
+                case 'G':
+                    piece = PIECE_GENERAL;
+                    color = COLOR_WHITE;
+                    break;
+                case 'K':
+                    piece = PIECE_KING;
+                    color = COLOR_WHITE;
+                    break;
+                case 's':
+                    piece = PIECE_SOLDIER;
+                    color = COLOR_BLACK;
+                    break;
+                case 'g':
+                    piece = PIECE_GENERAL;
+                    color = COLOR_BLACK;
+                    break;
+                case 'k':
+                    piece = PIECE_KING;
+                    color = COLOR_BLACK;
+                    break;
+                default:
+                    assert(false && "Unknown piece in FEN");
             }
 
             position.pieces[color][piece] |= bb_from_sq(sq_get(curr_file, curr_rank));
             curr_file++;
         }
-
     }
 
     char *ply_str = strtok(NULL, " ");
@@ -222,17 +225,17 @@ Position position_from_fen(const char *fen_str) {
 
     if (side_to_move_str[0] == 'w') {
         position.side_to_move = COLOR_WHITE;
-    } else if (side_to_move_str[0] == 'b')  {
+    } else if (side_to_move_str[0] == 'b') {
         position.side_to_move = COLOR_BLACK;
     } else {
         assert(false && "Unknown side to move in FEN");
     }
 
-    char *creation_flag  = strtok(NULL, " ");
+    char *creation_flag = strtok(NULL, " ");
 
     if (creation_flag[0] == '1') {
         position.can_create_general = true;
-    } else if (creation_flag[0] == '0')  {
+    } else if (creation_flag[0] == '0') {
         position.can_create_general = false;
     } else {
         assert(false && "Invalid creation flag in FEN");
@@ -240,7 +243,7 @@ Position position_from_fen(const char *fen_str) {
 
     if (creation_flag[1] == '1') {
         position.can_create_king = true;
-    } else if (creation_flag[1] == '0')  {
+    } else if (creation_flag[1] == '0') {
         position.can_create_king = false;
     } else {
         assert(false && "Invalid creation flag in FEN");
@@ -310,5 +313,9 @@ void position_print(Position *pos) {
         printf("+---+---+---+---+---+---+---+---+\n");
     }
     printf("  a   b   c   d   e   f   g   h\n");
-}
 
+    printf("Side to move  : %s\n", pos->side_to_move == COLOR_WHITE ? "white" : "black");
+    printf("Ply           : %d\n", pos->ply);
+    printf("Create general: %s\n", pos->can_create_general ? "true" : "false");
+    printf("Create king   : %s\n", pos->can_create_king ? "true" : "false");
+}
