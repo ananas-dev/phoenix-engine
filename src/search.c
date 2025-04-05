@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
 
 #include "eval.h"
 #include "movegen.h"
@@ -12,12 +13,21 @@
 #define INF 100000
 
 int nodes_visited = 0;
-clock_t start_time;
+struct timeval start_time;
 double max_time;
 bool time_over;
 int search_depth;
 
 MoveList pv_table = {0};
+
+double get_elapsed_time() {
+    struct timeval now;
+    gettimeofday(&now, NULL);
+
+    // Calculate time difference in seconds with microsecond precision
+    return (double)(now.tv_sec - start_time.tv_sec) +
+           (double)(now.tv_usec - start_time.tv_usec) / 1000000.0;
+}
 
 int compare_moves(const void *a, const void *b) {
     const Move *fst = a;
@@ -39,11 +49,11 @@ void sort_move_list(MoveList *move_list) {
 
 bool is_time_up(void) {
     // Check time every 1000 nodes or so to avoid expensive clock() calls
-    clock_t current = clock();
-    double elapsed = (double) (current - start_time) / CLOCKS_PER_SEC;
+    double elapsed = get_elapsed_time();
+
 
     // Use 95% of allocated time to ensure we return before timeout
-    if (elapsed >= max_time * 0.95) {
+    if (elapsed >= max_time * 0.99) {
         time_over = true;
         return true;
     }
@@ -53,7 +63,7 @@ bool is_time_up(void) {
 Move search(Position *position, double max_time_seconds) {
     time_over = false;
     nodes_visited = 0;
-    start_time = clock();
+    gettimeofday(&start_time, NULL);
     max_time = max_time_seconds;
 
     Move last_completed_best_move = {};
@@ -101,6 +111,12 @@ Move search(Position *position, double max_time_seconds) {
 }
 
 int quiesce(Position *position, int alpha, int beta) {
+    if ((nodes_visited & 2047) == 0) {
+        if (is_time_up()) {
+            return 0;
+        }
+    }
+
     if (position_is_game_over(position)) {
         return -INF + position->ply;
     }
