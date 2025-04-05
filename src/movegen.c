@@ -615,7 +615,7 @@ uint64_t perft_aux(Position *position, int depth) {
 }
 
 
-uint64_t perft(Position *position, int depth) {
+uint64_t perft(Position *position, int depth, bool debug) {
     if (depth == 0 || position_is_game_over(position)) {
         return 1ULL;
     }
@@ -631,12 +631,16 @@ uint64_t perft(Position *position, int depth) {
     for (int i = 0; i < move_list.size; i++) {
         Position new_position = make_move(position, move_list.moves[i]);
 
-        sq_to_string(move_list.moves[i].from, from);
-        sq_to_string(move_list.moves[i].to, to);
+        if (debug) {
+            sq_to_string(move_list.moves[i].from, from);
+            sq_to_string(move_list.moves[i].to, to);
+        }
 
         uint64_t move_num_nodes = perft_aux(&new_position, depth - 1);
 
-        printf("%s-%s: %lu\n", from, to, move_num_nodes);
+        if (debug) {
+            printf("%s-%s: %lu\n", from, to, move_num_nodes);
+        }
 
         num_nodes += move_num_nodes;
     }

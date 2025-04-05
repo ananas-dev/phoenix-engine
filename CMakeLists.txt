@@ -3,6 +3,7 @@ project(ProjetIA C)
 
 set(CMAKE_C_STANDARD 11)
 
+add_subdirectory(vendor/Unity-2.6.1)
 
 add_library(phoenix SHARED
         src/phoenix.c
@@ -17,3 +18,9 @@ add_library(phoenix SHARED
 
 add_executable(phoenix_test src/main.c)
 target_link_libraries(phoenix_test phoenix)
+
+add_executable(perft_test test/perft.c)
+target_link_libraries(perft_test unity phoenix)
+
+add_test(NAME PerftTest COMMAND perft_test)
+enable_testing()
