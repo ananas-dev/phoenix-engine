@@ -15,21 +15,24 @@ int eval(Position *position) {
     int material_score = 900 * (num_white_general - num_black_general)
                          + 100 * (num_white_solider - num_black_solider);
 
-    MoveList move_list = {0};
-    legal_moves(position, &move_list);
-    int num_white_legal_move = move_list.size;
 
-    Position black_pov = make_null_move(position);
-    move_list.size = 0;
-    legal_moves(&black_pov, &move_list);
-    int num_black_legal_move = move_list.size;
 
-    int mobility_score = 5 * (num_white_legal_move - num_black_legal_move);
-
-    if (position->ply < 10) {
-        return mobility_score * turn;
-    }
-
-    return (material_score + mobility_score) * turn;
+    // MoveList move_list = {0};
+    // legal_moves(position, &move_list);
+    // int num_white_legal_move = move_list.size;
+    //
+    // Position black_pov = make_null_move(position);
+    // move_list.size = 0;
+    // legal_moves(&black_pov, &move_list);
+    // int num_black_legal_move = move_list.size;
+    //
+    // int mobility_score = 5 * (num_white_legal_move - num_black_legal_move);
+    //
+    // if (position->ply < 10) {
+    //     return mobility_score * turn;
+    // }
+    //
+    // return (material_score + mobility_score) * turn;
+    return material_score * turn;
 };
 
