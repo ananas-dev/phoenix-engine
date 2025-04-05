@@ -83,7 +83,7 @@ class Move(ctypes.Structure):
 class IAAgent(Agent):
     def __init__(self, player):
         super().__init__(player)
-        self.lib = ctypes.CDLL("../cmake-build-debug/libphoenix.so")
+        self.lib = ctypes.CDLL("../build/libphoenix.so")
         self.lib.act.argtypes = [ctypes.c_char_p, ctypes.c_double]
         self.lib.act.restype = Move
         self.lib.init()

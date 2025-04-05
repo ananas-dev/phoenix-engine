@@ -1,15 +1,15 @@
 import mcts_agent
-import game_manager
+import visual_game_manager
 import random_agent
+import ia_agent
 
 agent1 = mcts_agent.MCTSAgent(0)
-agent2 = random_agent.RandomAgent(1)
+agent2 = ia_agent.IAAgent(1)
 
-manager = game_manager.TextGameManager(
-    agent_1=agent1,
-    agent_2=agent2,
+manager = visual_game_manager.VisualGameManager(
+    red_agent=mcts_agent.MCTSAgent(0),
+    black_agent=ia_agent.IAAgent(1),
+    min_agent_play_time=0.5,
 )
 
-for x in range(5000):
-    print(f"-- GAME {x} --")
-    manager.play()
+manager.play()

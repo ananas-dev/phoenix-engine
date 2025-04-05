@@ -53,7 +53,7 @@ Move act(char *position, double time_remaining) {
 
     position_print(&pos);
 
-    Move move = search(&pos, 10.0);
+    Move move = search(&pos, 0.5);
 
     char from[3];
     char to[3];
