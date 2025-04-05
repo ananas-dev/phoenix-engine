@@ -4,6 +4,8 @@
 #include "bitboard.h"
 #include "move.h"
 
+#define FEN_START "SSSSSS2/SSSSS2s/SSSS2ss/SSS2sss/SS2ssss/S2sssss/2ssssss 0 w 00"
+
 typedef struct {
     Bitboard pieces[NUM_COLOR][NUM_PIECE];
     uint16_t ply;
