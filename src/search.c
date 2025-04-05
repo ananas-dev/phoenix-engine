@@ -73,7 +73,8 @@ Move search(Position *position, double max_time_seconds) {
             break;
         }
 
-        MoveList move_list = {0};
+        MoveList move_list;
+        move_list.size = 0;
         legal_moves(position, &move_list);
         sort_move_list(&move_list);
 
@@ -128,7 +129,8 @@ int quiesce(Position *position, int alpha, int beta) {
     if (alpha < stand_pat)
         alpha = stand_pat;
 
-    MoveList move_list = {0};
+    MoveList move_list;
+    move_list.size = 0;
     legal_moves(position, &move_list);
     sort_move_list(&move_list);
 
@@ -190,7 +192,8 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
 
     nodes_visited++;
 
-    MoveList move_list = {0};
+    MoveList move_list;
+    move_list.size = 0;
     legal_moves(position, &move_list);
     sort_move_list(&move_list);
 

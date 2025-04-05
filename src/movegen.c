@@ -211,17 +211,8 @@ void init_slider_attacks() {
 }
 
 typedef struct {
-    Bitboard past_captures;
-    int value;
-    Square from;
-    Square to;
-} CaptureSequence;
-
-typedef struct {
-    int size;
-    int max_value;
-    CaptureSequence sequences[16];
-} CaptureSequenceList;
+    uint8_t max_value;
+} CaptureInfo;
 
 // Helper function to check if a destination square is valid
 static inline bool is_valid_destination(Square dest, Direction direction, Bitboard combined) {
@@ -237,11 +228,11 @@ static inline bool is_valid_destination(Square dest, Direction direction, Bitboa
 }
 
 // Helper function to calculate capture value
-static inline int calculate_capture_value(Position *pos, Square target, Color color, int current_value) {
+static inline uint8_t calculate_capture_value(Position *pos, Square target, Color color, uint8_t current_value) {
     int new_value = current_value;
     for (Piece piece = PIECE_SOLDIER; piece <= PIECE_KING; piece++) {
         if (pos->pieces[1 - color][piece] & bb_from_sq(target)) {
-            new_value += (int) piece + 1;
+            new_value += (uint8_t) piece + 1;
             break;
         }
     }
@@ -249,27 +240,27 @@ static inline int calculate_capture_value(Position *pos, Square target, Color co
 }
 
 // Helper function to store sequence in capture list if no more captures possible
-static inline void insert_sequence(CaptureSequence sequence, CaptureSequenceList *capture_list) {
+static inline void insert_sequence(Move sequence, uint8_t value, MoveList *capture_list, CaptureInfo *capture_info) {
     // Skip empty sequences
     if (sequence.from == sequence.to) {
         return;
     }
 
-    if (capture_list->max_value == 0 || sequence.value > capture_list->max_value) {
-        capture_list->max_value = sequence.value;
+    if (capture_info->max_value == 0 || value > capture_info->max_value) {
+        capture_info->max_value = value;
         capture_list->size = 1;
-        capture_list->sequences[0] = sequence;
-    } else if (sequence.value == capture_list->max_value) {
+        capture_list->moves[0] = sequence;
+    } else if (value == capture_info->max_value) {
         for (int i = 0; i < capture_list->size; i++) {
-            CaptureSequence other_sequence = capture_list->sequences[i];
+            Move other_sequence = capture_list->moves[i];
 
-            if (sequence.from == other_sequence.from || sequence.to == other_sequence.to || sequence.past_captures ==
-                other_sequence.past_captures) {
+            if (sequence.from == other_sequence.from && sequence.to == other_sequence.to && sequence.captures ==
+                other_sequence.captures) {
                 return; // Avoid duplicates
             }
         }
 
-        capture_list->sequences[capture_list->size++] = sequence;
+        capture_list->moves[capture_list->size++] = sequence;
     }
 }
 
@@ -286,7 +277,7 @@ static inline void setup_capture_search(Position *pos, Bitboard *my_pieces, Bitb
     *combined = *my_pieces | *enemy_pieces;
 }
 
-void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequenceList *capture_list) {
+void find_king_captures(Position *pos, Move sequence, uint8_t value, MoveList *capture_list, CaptureInfo *capture_info) {
     Bitboard my_pieces, enemy_pieces, combined;
     setup_capture_search(pos, &my_pieces, &enemy_pieces, &combined);
 
@@ -297,7 +288,7 @@ void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequence
     bool found_capture = false;
 
     // Add the capture mask of current sequence
-    Bitboard potential_captures_it = attacks & enemy_pieces & ~sequence.past_captures & BB_USED;
+    Bitboard potential_captures_it = attacks & enemy_pieces & ~sequence.captures & BB_USED;
 
     while (potential_captures_it) {
         Square target = bb_it_next(&potential_captures_it);
@@ -311,25 +302,25 @@ void find_king_captures(Position *pos, CaptureSequence sequence, CaptureSequence
 
         found_capture = true;
 
-        int new_value = calculate_capture_value(pos, target, color, sequence.value);
+        int new_value = calculate_capture_value(pos, target, color, value);
 
-        CaptureSequence new_sequence = {
-            .value = new_value,
+        Move new_sequence = {
             .from = sequence.from,
             .to = to,
-            .past_captures = sequence.past_captures | bb_from_sq(target)
+            .captures = sequence.captures | bb_from_sq(target)
         };
 
-        find_king_captures(pos, new_sequence, capture_list);
+        find_king_captures(pos, new_sequence, new_value, capture_list, capture_info);
+
     }
 
     // If no capture
     if (!found_capture) {
-        insert_sequence(sequence, capture_list);
+        insert_sequence(sequence, value, capture_list, capture_info);
     }
 }
 
-void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSequenceList *capture_list) {
+void find_general_captures(Position *pos, Move sequence, uint8_t value, MoveList *capture_list, CaptureInfo *capture_info) {
     Bitboard my_pieces, enemy_pieces, combined;
     setup_capture_search(pos, &my_pieces, &enemy_pieces, &combined);
 
@@ -340,7 +331,7 @@ void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSeque
     bool found_capture = false;
 
     // Add the capture mask of current sequence
-    Bitboard potential_captures_it = attacks & enemy_pieces & ~sequence.past_captures & BB_USED;
+    Bitboard potential_captures_it = attacks & enemy_pieces & ~sequence.captures & BB_USED;
 
     while (potential_captures_it) {
         Square target = bb_it_next(&potential_captures_it);
@@ -373,16 +364,15 @@ void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSeque
         while (is_valid_destination(to, direction, combined)) {
             found_capture = true;
 
-            int new_value = calculate_capture_value(pos, target, color, sequence.value);
+            int new_value = calculate_capture_value(pos, target, color, value);
 
-            CaptureSequence new_sequence = {
-                .value = new_value,
+            Move new_sequence = {
                 .from = sequence.from,
                 .to = to,
-                .past_captures = sequence.past_captures | bb_from_sq(target)
+                .captures = sequence.captures | bb_from_sq(target)
             };
 
-            find_general_captures(pos, new_sequence, capture_list);
+            find_general_captures(pos, new_sequence, new_value, capture_list, capture_info);
 
             to += direction;
         }
@@ -390,11 +380,11 @@ void find_general_captures(Position *pos, CaptureSequence sequence, CaptureSeque
 
     // If no capture
     if (!found_capture) {
-        insert_sequence(sequence, capture_list);
+        insert_sequence(sequence, value, capture_list, capture_info);
     }
 }
 
-void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSequenceList *capture_list) {
+void find_soldier_captures(Position *pos, Move sequence, uint8_t value, MoveList *capture_list, CaptureInfo *capture_info) {
     Bitboard my_pieces, enemy_pieces, combined;
     setup_capture_search(pos, &my_pieces, &enemy_pieces, &combined);
 
@@ -405,7 +395,7 @@ void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSeque
     bool found_capture = false;
 
     // Add the capture mask of current sequence
-    Bitboard potential_captures_it = attacks & enemy_pieces & ~sequence.past_captures & BB_USED;
+    Bitboard potential_captures_it = attacks & enemy_pieces & ~sequence.captures & BB_USED;
 
     while (potential_captures_it) {
         Square target = bb_it_next(&potential_captures_it);
@@ -419,21 +409,20 @@ void find_soldier_captures(Position *pos, CaptureSequence sequence, CaptureSeque
 
         found_capture = true;
 
-        int new_value = calculate_capture_value(pos, target, color, sequence.value);
+        int new_value = calculate_capture_value(pos, target, color, value);
 
-        CaptureSequence new_sequence = {
-            .value = new_value,
+        Move new_sequence = {
             .from = sequence.from,
             .to = to,
-            .past_captures = sequence.past_captures | bb_from_sq(target)
+            .captures = sequence.captures | bb_from_sq(target)
         };
 
-        find_soldier_captures(pos, new_sequence, capture_list);
+        find_soldier_captures(pos, new_sequence, new_value, capture_list, capture_info);
     }
 
     // If no capture
     if (!found_capture) {
-        insert_sequence(sequence, capture_list);
+        insert_sequence(sequence, value, capture_list, capture_info);
     }
 }
 
@@ -458,8 +447,6 @@ void append_stacks(Position *pos, MoveList *move_list, Bitboard stack_targets) {
 }
 
 void legal_moves(Position *pos, MoveList *move_list) {
-    CaptureSequenceList capture_sequence_list = {0};
-
     Color color = pos->side_to_move;
 
     Bitboard my_pieces =
@@ -486,63 +473,51 @@ void legal_moves(Position *pos, MoveList *move_list) {
         return;
     }
 
+    CaptureInfo capture_info = {0};
+
     // Check for captures
     {
         Bitboard kings_it = pos->pieces[color][PIECE_KING] & BB_USED;
         while (kings_it) {
             Square from = bb_it_next(&kings_it);
 
-            CaptureSequence sequence = {
-                .value = 0,
-                .past_captures = BB_EMPTY,
+            Move sequence = {
+                .captures = BB_EMPTY,
                 .from = from,
                 .to = from,
             };
 
-            find_king_captures(pos, sequence, &capture_sequence_list);
+            find_king_captures(pos, sequence, 0, move_list, &capture_info);
         }
     } {
         Bitboard general_it = pos->pieces[color][PIECE_GENERAL] & BB_USED;
         while (general_it) {
             Square from = bb_it_next(&general_it);
 
-            CaptureSequence sequence = {
-                .value = 0,
-                .past_captures = BB_EMPTY,
+            Move sequence = {
+                .captures = BB_EMPTY,
                 .from = from,
                 .to = from,
             };
 
-            find_general_captures(pos, sequence, &capture_sequence_list);
+            find_general_captures(pos, sequence, 0, move_list, &capture_info);
         }
     } {
         Bitboard soldier_it = pos->pieces[color][PIECE_SOLDIER] & BB_USED;
         while (soldier_it) {
             Square from = bb_it_next(&soldier_it);
 
-            CaptureSequence sequence = {
-                .value = 0,
-                .past_captures = BB_EMPTY,
+             Move sequence = {
+                .captures = BB_EMPTY,
                 .from = from,
                 .to = from,
             };
 
-            find_soldier_captures(pos, sequence, &capture_sequence_list);
+            find_soldier_captures(pos, sequence, 0, move_list, &capture_info);
         }
     }
 
-    // Append captures
-    for (int i = 0; i < capture_sequence_list.size; i++) {
-        CaptureSequence sequence = capture_sequence_list.sequences[i];
-
-        move_list->moves[move_list->size++] = (Move){
-            .from = sequence.from,
-            .to = sequence.to,
-            .captures = sequence.past_captures,
-        };
-    }
-
-    if (capture_sequence_list.size > 0) {
+    if (move_list->size > 0) {
         return;
     }
 
