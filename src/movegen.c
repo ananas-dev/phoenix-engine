@@ -220,7 +220,7 @@ typedef struct {
 typedef struct {
     int size;
     int max_value;
-    CaptureSequence sequences[64];
+    CaptureSequence sequences[16];
 } CaptureSequenceList;
 
 // Helper function to check if a destination square is valid
@@ -260,6 +260,15 @@ static inline void insert_sequence(CaptureSequence sequence, CaptureSequenceList
         capture_list->size = 1;
         capture_list->sequences[0] = sequence;
     } else if (sequence.value == capture_list->max_value) {
+        for (int i = 0; i < capture_list->size; i++) {
+            CaptureSequence other_sequence = capture_list->sequences[i];
+
+            if (sequence.from == other_sequence.from || sequence.to == other_sequence.to || sequence.past_captures ==
+                other_sequence.past_captures) {
+                return; // Avoid duplicates
+            }
+        }
+
         capture_list->sequences[capture_list->size++] = sequence;
     }
 }

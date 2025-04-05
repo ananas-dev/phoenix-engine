@@ -16,7 +16,7 @@ void init() {
 }
 
 void test() {
-    Position pos = position_from_fen("1SSSSS2/G1SSS3/1KSS3g/G1S3k1/G4ssg/3sgsss/2Ssssss 13 b 00");
+    Position pos = position_from_fen("1S2K3/GSGSS2s/SSSS2s1/SSS2ssg/SS2sss1/S3gssg/2ssss1g 8 w 00");
 
     position_print(&pos);
 
