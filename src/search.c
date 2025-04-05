@@ -18,6 +18,10 @@ double max_time;
 bool time_over;
 int search_depth;
 
+PackedMoveFlag tt_best_move_flag;
+Square tt_best_move_from;
+Square tt_best_move_to;
+
 MoveList pv_table = {0};
 
 double get_elapsed_time() {
@@ -25,26 +29,46 @@ double get_elapsed_time() {
     gettimeofday(&now, NULL);
 
     // Calculate time difference in seconds with microsecond precision
-    return (double)(now.tv_sec - start_time.tv_sec) +
-           (double)(now.tv_usec - start_time.tv_usec) / 1000000.0;
+    return (double) (now.tv_sec - start_time.tv_sec) +
+           (double) (now.tv_usec - start_time.tv_usec) / 1000000.0;
 }
 
-int compare_moves(const void *a, const void *b) {
-    const Move *fst = a;
-    const Move *snd = b;
+// Sort order:
+// 1. TT move
+// 2. Normal move
+int compare_moves(Move *fst, Move *snd) {
+    if (tt_best_move_flag != FLAG_NULL) {
+        if (fst->from == tt_best_move_from && fst->to == tt_best_move_to) {
+            return -1;
+        }
 
-    int fst_captures = bb_popcnt(fst->captures);
-    int snd_captures = bb_popcnt(snd->captures);
-
-    if (fst_captures != 0 || snd_captures != 0) {
-        return fst_captures - snd_captures;
+        if (snd->from == tt_best_move_from && snd->to == tt_best_move_to) {
+            return 1;
+        }
     }
 
-    return 1;
+    // Arbitrary ordering for normal moves
+    if (fst->from != snd->from) return fst->from - snd->from;
+    return fst->to - snd->to;
 }
 
+// Here we use insertion sort since the move list is small and almost sorted
 void sort_move_list(MoveList *move_list) {
-    qsort(move_list->moves, move_list->size, sizeof(Move), compare_moves);
+    if (tt_best_move_flag == FLAG_NULL) {
+        return; // Nothing to reorder
+    }
+
+    for (int i = 1; i < move_list->size; i++) {
+        Move key = move_list->moves[i];
+        int j = i - 1;
+
+        // Compare using your custom compare_moves logic
+        while (j >= 0 && compare_moves(&key, &move_list->moves[j]) < 0) {
+            move_list->moves[j + 1] = move_list->moves[j];
+            j--;
+        }
+        move_list->moves[j + 1] = key;
+    }
 }
 
 bool is_time_up(void) {
@@ -75,6 +99,12 @@ Move search(Position *position, double max_time_seconds) {
 
         MoveList move_list;
         move_list.size = 0;
+
+
+        PackedMove tt_best_move = NULL_PACKED_MOVE;
+        tt_get(position, depth, 0, 0, &tt_best_move);
+        packed_move_extract(tt_best_move, &tt_best_move_flag, &tt_best_move_from, &tt_best_move_to);
+
         legal_moves(position, &move_list);
         sort_move_list(&move_list);
 
@@ -132,7 +162,7 @@ int quiesce(Position *position, int alpha, int beta) {
     MoveList move_list;
     move_list.size = 0;
     legal_moves(position, &move_list);
-    sort_move_list(&move_list);
+    // sort_move_list(&move_list);
 
     for (int i = 0; i < move_list.size; i++) {
         Move move = move_list.moves[i];
@@ -151,7 +181,6 @@ int quiesce(Position *position, int alpha, int beta) {
             if (bb_is_empty(new_general) && bb_is_empty(new_king)) {
                 continue;
             }
-
         }
 
         Position new_position = make_move(position, move);
@@ -181,7 +210,10 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
         }
     }
 
-    int tt_value = tt_get(position, depth, alpha, beta);
+    PackedMove tt_best_move = NULL_PACKED_MOVE;
+    int tt_value = tt_get(position, depth, alpha, beta, &tt_best_move);
+    packed_move_extract(tt_best_move, &tt_best_move_flag, &tt_best_move_from, &tt_best_move_to);
+
     if (tt_value != TT_MISS) {
         return tt_value;
     }
@@ -218,7 +250,8 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
         }
 
         if (score >= beta) {
-            tt_set(position, depth, best_value, ENTRY_TYPE_BETA);
+            PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);
+            tt_set(position, depth, best_value, ENTRY_TYPE_BETA, best_move_packed);
             return best_value;
         }
     }
@@ -230,7 +263,8 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
         type = ENTRY_TYPE_EXACT; // Exact score
     }
 
-    tt_set(position, depth, best_value, type);
+    PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);
+    tt_set(position, depth, best_value, type, best_move_packed);
 
     return best_value;
 }

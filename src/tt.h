@@ -16,9 +16,10 @@ typedef struct {
     Bitboard hash;
     EntryType type;
     int val;
+    PackedMove best_move;
     uint8_t depth;
 } Entry;
 
 void tt_init(int size);
-void tt_set(Position *position, uint8_t depth, int val, EntryType type);
-int tt_get(Position *position, uint8_t depth, int alpha, int beta);
+void tt_set(Position *position, uint8_t depth, int val, EntryType type, PackedMove best_move);
+int tt_get(Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move);
