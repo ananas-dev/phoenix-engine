@@ -22,5 +22,5 @@ target_link_libraries(phoenix_test phoenix)
 add_executable(perft_test test/perft.c)
 target_link_libraries(perft_test unity phoenix)
 
-add_test(NAME PerftTest COMMAND perft_test)
+add_test(NAME Perft COMMAND perft_test)
 enable_testing()
