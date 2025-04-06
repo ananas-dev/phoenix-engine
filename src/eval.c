@@ -50,6 +50,14 @@ int eval(Position *position) {
 
     int mobility_score = (white_mobility - black_mobility) * 10;
 
-    return (material_score + mobility_score) * turn;
+    int num_white_soldier_on_corners = 0;
+    int num_black_soldier_on_corners = 0;
+
+    num_white_soldier_on_corners += bb_popcnt(position->pieces[COLOR_WHITE][PIECE_SOLDIER] & BB_ALL_CORNERS);
+    num_black_soldier_on_corners += bb_popcnt(position->pieces[COLOR_BLACK][PIECE_SOLDIER] & BB_ALL_CORNERS);
+
+    int corners_score = 10 * (num_white_soldier_on_corners - num_black_soldier_on_corners);
+
+    return (material_score + corners_score + mobility_score) * turn;
 };
 
