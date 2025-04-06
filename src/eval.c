@@ -17,6 +17,16 @@ int eval(Position *position) {
 
 
 
+    // Counter pieces on each corner
+    int num_white_soldier_on_corners = 0;
+    int num_black_soldier_on_corners = 0;
+
+    num_white_soldier_on_corners += bb_popcnt(position->pieces[COLOR_WHITE][PIECE_SOLDIER] & BB_ALL_CORNERS);
+    num_black_soldier_on_corners += bb_popcnt(position->pieces[COLOR_BLACK][PIECE_SOLDIER] & BB_ALL_CORNERS);
+
+    int corners_score = 10 * (num_white_soldier_on_corners - num_black_soldier_on_corners);
+
+
     // MoveList move_list = {0};
     // legal_moves(position, &move_list);
     // int num_white_legal_move = move_list.size;
@@ -33,6 +43,6 @@ int eval(Position *position) {
     // }
     //
     // return (material_score + mobility_score) * turn;
-    return material_score * turn;
+    return (material_score + corners_score) * turn;
 };
 
