@@ -2,6 +2,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "eval.h"
 #include "movegen.h"
 #include "position.h"
 #include "time.h"
@@ -11,6 +13,7 @@
 void init() {
     movegen_init();
     position_init();
+    eval_init();
     tt_init(65536); // 2 ^ 16
     srand(time(NULL));
 }
@@ -53,7 +56,7 @@ Move act(char *position, double time_remaining) {
 
     position_print(&pos);
 
-    Move move = search(&pos, 0.5);
+    Move move = search(&pos, 10.0);
 
     char from[3];
     char to[3];

@@ -19,7 +19,7 @@ void position_init();
 
 static inline bool position_is_game_over(Position *pos) {
     if (pos->ply >= 10) {
-        return !pos->can_create_king && bb_popcnt(pos->pieces[pos->side_to_move][PIECE_KING] & BB_USED) == 0;
+        return bb_popcnt(pos->pieces[1 - pos->side_to_move][PIECE_KING] & BB_USED) == 0;
     }
 
     return false;

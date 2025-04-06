@@ -1,5 +1,6 @@
 #include "search.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -108,6 +109,8 @@ Move search(Position *position, double max_time_seconds) {
         legal_moves(position, &move_list);
         sort_move_list(&move_list);
 
+        assert(move_list.size > 0);
+
         int best_score = -INF;
         Move current_best_move = {};
         bool depth_completed = true;
@@ -131,7 +134,7 @@ Move search(Position *position, double max_time_seconds) {
 
         if (depth_completed) {
             last_completed_best_move = current_best_move;
-            printf("Depth %d: Best move eval = %d\n", depth, best_score);
+            printf("Depth %d: Best move eval = %.2f\n", depth, (float)best_score/100.0f);
         } else {
             printf("Depth %d: Search incomplete (time limit)\n", depth);
             break;
@@ -149,7 +152,7 @@ int quiesce(Position *position, int alpha, int beta) {
     }
 
     if (position_is_game_over(position)) {
-        return -INF + position->ply;
+        return INF - position->ply;
     }
 
     int stand_pat = eval(position);
@@ -200,7 +203,7 @@ int quiesce(Position *position, int alpha, int beta) {
 
 int alpha_beta(Position *position, int depth, int alpha, int beta) {
     if (position_is_game_over(position)) {
-        return -INF + position->ply;
+        return INF - position->ply;
     }
 
     // Check every 1000 nodes
@@ -236,6 +239,8 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
     int best_value = -INF;
     Move best_move = {0};
 
+    int original_alpha = alpha;
+
     for (int i = 0; i < move_list.size; i++) {
         Move move = move_list.moves[i];
         Position new_position = make_move(position, move);
@@ -249,7 +254,7 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
             }
         }
 
-        if (score >= beta) {
+        if (alpha >= beta) {
             PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);
             tt_set(position, depth, best_value, ENTRY_TYPE_BETA, best_move_packed);
             return best_value;
@@ -257,10 +262,10 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
     }
 
     EntryType type;
-    if (best_value <= alpha) {
-        type = ENTRY_TYPE_ALPHA; // Upper bound (fail-low)
+    if (best_value <= original_alpha) {
+        type = ENTRY_TYPE_ALPHA;  // Fail-low: search did not improve alpha
     } else {
-        type = ENTRY_TYPE_EXACT; // Exact score
+        type = ENTRY_TYPE_EXACT;  // Score is between alpha and beta
     }
 
     PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);

@@ -14,7 +14,7 @@ void tt_init(int size) {
 void tt_set(Position *position, uint8_t depth, int val, EntryType type, PackedMove best_move) {
     Entry *entry = &tt[position->hash & (tt_size - 1)];
 
-    if ((position->hash == entry->hash) && (depth < entry->depth)) return;
+    if ((position->hash == entry->hash) && (depth <= entry->depth)) return;
 
     *entry = (Entry) {
         .hash = position->hash,
@@ -37,11 +37,11 @@ int tt_get(Position *position, uint8_t depth, int alpha, int beta, PackedMove *b
             }
 
             if ((entry->type == ENTRY_TYPE_ALPHA) && (entry->val <= alpha)) {
-                return alpha;
+                return entry->val;
             }
 
             if ((entry->type == ENTRY_TYPE_BETA) && (entry->val >= beta)) {
-                return beta;
+                return entry->val;
             }
         }
     }

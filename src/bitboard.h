@@ -24,6 +24,9 @@ typedef uint64_t Bitboard;
 #define BB_BOTTOM_LEFT_CORNER 0x00000000000001ULL
 #define BB_BOTTOM_RIGHT_CORNER 0x0000000000080ULL
 #define BB_ALL_CORNERS        0x81000000000081ULL
+#define BB_A_FILE             ~BB_NOT_A_FILE
+#define BB_A_FILE             ~BB_NOT_A_FILE
+#
 
 void bb_print(Bitboard bb);
 
