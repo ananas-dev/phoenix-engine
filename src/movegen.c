@@ -449,11 +449,8 @@ void append_stacks(Position *pos, MoveList *move_list, Bitboard stack_targets) {
 void legal_moves(Position *pos, MoveList *move_list) {
     Color color = pos->side_to_move;
 
-    Bitboard my_pieces =
-            pos->pieces[color][PIECE_SOLDIER] | pos->pieces[color][PIECE_GENERAL] | pos->pieces[color][PIECE_KING];
-
-    Bitboard enemy_pieces = pos->pieces[1 - color][PIECE_SOLDIER] | pos->pieces[1 - color][PIECE_GENERAL] |
-                            pos->pieces[1 - color][PIECE_KING];
+    Bitboard my_pieces = pieces_by_color(pos, color);
+    Bitboard enemy_pieces = pieces_by_color(pos, 1 - color);
 
     Bitboard combined = my_pieces | enemy_pieces;
 

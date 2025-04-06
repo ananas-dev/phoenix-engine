@@ -25,6 +25,10 @@ static inline bool position_is_game_over(Position *pos) {
     return false;
 }
 
+static inline Bitboard pieces_by_color(Position *pos, Color color) {
+    return pos->pieces[color][PIECE_SOLDIER] | pos->pieces[color][PIECE_GENERAL] | pos->pieces[color][PIECE_KING];
+}
+
 Position make_move(Position *pos, Move move);
 Position make_null_move(Position *pos);
 Position position_from_fen(const char *fen_str);
