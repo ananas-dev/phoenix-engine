@@ -38,37 +38,23 @@ void test() {
     bb_print(move.captures);
 }
 
-
-// void test() {
-//     // Position pos = position_from_fen("SSSSSS2/SSSGS2s/SSS3ss/SSS2sss/SS2ssss/S2ssssg/2sssss1 2 w 00");
-//     Position pos = position_from_fen("G2SSS2/1SKSS2s/GSS4s/1SSS2k1/GS2s1gg/3sssg1/2ssssss 13 b 00");
-//
-//     position_print(&pos);
-//
-//     uint64_t num_nodes = perft(&pos, 3);
-//     printf("Perft result %lu:\n", num_nodes);
-// }
-
-
-
 Move act(char *position, double time_remaining) {
     Position pos = position_from_fen(position);
 
     position_print(&pos);
 
-    Move move = search(&pos, 10.0);
+    double allocated_time = 10.0;
 
-    char from[3];
-    char to[3];
+    // Basic time management
+    if (allocated_time > 100.0) {
+        allocated_time = 5.0;
+    } if (allocated_time > 30.0) {
+        allocated_time = 3.0;
+    } else if (time_remaining > 10.0) {
+        allocated_time = 1.0;
+    } else if (time_remaining > 3.0) {
+        allocated_time = 0.1;
+    }
 
-    sq_to_string(move.from, from);
-    sq_to_string(move.to, to);
-
-    printf("Move:\n");
-    printf("  from: %s\n", from);
-    printf("  to: %s\n", to);
-    // printf("  captures:\n");
-    // bb_print(move.captured);
-
-    return move;
+    return search(&pos, allocated_time);
 }
