@@ -148,6 +148,11 @@ Move search(Position *position, double max_time_seconds) {
             }
 
             printf("\n");
+
+            // Return early if mate is found
+            if (score >= INF - MAX_PLY) {
+                return best_move;
+            }
         }
 
     }
