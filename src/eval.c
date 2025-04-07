@@ -10,9 +10,9 @@ int distance[NUM_SQUARE][NUM_SQUARE];
 int soldier_position_reward[NUM_SQUARE] = {
     20, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 10, 10, 0, 0, 0,
-    0, 0, 20, 20, 30, 30, 0, 0,
-    0, 0, 20, 40, 40, 20, 0, 0,
-    0, 0, 30, 30, 20, 20, 0, 0,
+    0, 0, 20, 20, 200, 200, 0, 0,
+    0, 0, 20, 200, 200, 20, 0, 0,
+    0, 0, 200, 200, 20, 20, 0, 0,
     0, 0, 0, 10, 10, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 20,
 };
@@ -41,7 +41,7 @@ static inline int mobility(Position *position, Color color, Bitboard color_piece
         king_mobility |= king_attacks(from) & ~color_pieces;
     }
 
-    return 8 * bb_popcnt(general_mobility) + 1 * bb_popcnt(king_mobility);
+    return 16 * bb_popcnt(general_mobility) + 1 * bb_popcnt(king_mobility);
 }
 
 int eval(Position *position) {

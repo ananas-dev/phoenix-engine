@@ -37,11 +37,11 @@ int tt_get(Position *position, uint8_t depth, int alpha, int beta, PackedMove *b
             }
 
             if ((entry->type == ENTRY_TYPE_ALPHA) && (entry->val <= alpha)) {
-                return entry->val;
+                return alpha;
             }
 
             if ((entry->type == ENTRY_TYPE_BETA) && (entry->val >= beta)) {
-                return entry->val;
+                return beta;
             }
         }
     }

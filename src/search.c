@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <sys/time.h>
 
@@ -22,8 +23,21 @@ int search_depth;
 PackedMoveFlag tt_best_move_flag;
 Square tt_best_move_from;
 Square tt_best_move_to;
+bool tt_best_move_sorting;
 
-MoveList pv_table = {0};
+#define MAX_PLY 128
+#define PV_TABLE_SIZE 64
+
+typedef struct {
+    Move moves[PV_TABLE_SIZE];
+    int size;
+} PVLine;
+
+PVLine pv_table[MAX_PLY];
+bool pv_sorting = true;
+bool follow_pv = true;
+
+int search_ply = 0;
 
 double get_elapsed_time() {
     struct timeval now;
@@ -36,39 +50,48 @@ double get_elapsed_time() {
 
 // Sort order:
 // 1. TT move
-// 2. Normal move
-int compare_moves(Move *fst, Move *snd) {
-    if (tt_best_move_flag != FLAG_NULL) {
-        if (fst->from == tt_best_move_from && fst->to == tt_best_move_to) {
-            return -1;
-        }
+// 2. PV move
+// 3. Normal move
+int weight_move(Move move) {
+    if (tt_best_move_sorting && move.from == tt_best_move_from && move.to == tt_best_move_to) {
+        tt_best_move_sorting = false;
+        return 2;
+    }
 
-        if (snd->from == tt_best_move_from && snd->to == tt_best_move_to) {
+    if (pv_sorting) {
+        Move pv_move = pv_table[0].moves[search_ply];
+        if (pv_move.from == move.from && pv_move.to == move.to && pv_move.captures == move.captures) {
+            pv_sorting = false;
             return 1;
         }
     }
 
-    // Arbitrary ordering for normal moves
-    if (fst->from != snd->from) return fst->from - snd->from;
-    return fst->to - snd->to;
+    return 0;
 }
 
 // Here we use insertion sort since the move list is small and almost sorted
 void sort_move_list(MoveList *move_list) {
-    if (tt_best_move_flag == FLAG_NULL) {
-        return; // Nothing to reorder
+    tt_best_move_sorting = (tt_best_move_flag != FLAG_NULL);
+
+    int weights[move_list->size];
+
+    for (int i = 0; i < move_list->size; i++) {
+        weights[i] = weight_move(move_list->moves[i]);
     }
 
     for (int i = 1; i < move_list->size; i++) {
-        Move key = move_list->moves[i];
+        Move move = move_list->moves[i];
+        int weight = weights[i];
         int j = i - 1;
 
-        // Compare using your custom compare_moves logic
-        while (j >= 0 && compare_moves(&key, &move_list->moves[j]) < 0) {
+        while (j >= 0 && weights[j] < weight) {
             move_list->moves[j + 1] = move_list->moves[j];
+            weights[j + 1] = weights[j];
             j--;
         }
-        move_list->moves[j + 1] = key;
+
+        move_list->moves[j + 1] = move;
+        weights[j + 1] = weight;
     }
 }
 
@@ -85,63 +108,51 @@ bool is_time_up(void) {
     return false;
 }
 
+int alpha_beta(Position *position, int depth, int alpha, int beta);
+
 Move search(Position *position, double max_time_seconds) {
+    search_ply = 0;
+
+    memset(pv_table, 0, sizeof(pv_table));
+
+    follow_pv = false;
+    pv_sorting = false;
+
     time_over = false;
     nodes_visited = 0;
     gettimeofday(&start_time, NULL);
     max_time = max_time_seconds;
 
-    Move last_completed_best_move = {};
+    int alpha = -INF;
+    int beta = INF;
+
+    Move best_move = {0};
 
     for (int depth = 1; depth <= 100; depth++) {
         if (time_over) {
             break;
         }
 
-        MoveList move_list;
-        move_list.size = 0;
+        follow_pv = true;
 
+        int score = alpha_beta(position, depth, alpha, beta);
 
-        PackedMove tt_best_move = NULL_PACKED_MOVE;
-        tt_get(position, depth, 0, 0, &tt_best_move);
-        packed_move_extract(tt_best_move, &tt_best_move_flag, &tt_best_move_from, &tt_best_move_to);
+        if (!time_over) {
+            best_move = pv_table[0].moves[0];
 
-        legal_moves(position, &move_list);
-        sort_move_list(&move_list);
+            printf("Depth=%d, Score=%.2f\n", depth, (float)score/100.0f);
 
-        assert(move_list.size > 0);
-
-        int best_score = -INF;
-        Move current_best_move = {};
-        bool depth_completed = true;
-
-        for (int i = 0; i < move_list.size; i++) {
-            Move move = move_list.moves[i];
-            Position new_position = make_move(position, move);
-
-            int score = -alpha_beta(&new_position, depth - 1, -INF, INF);
-
-            if (time_over) {
-                depth_completed = false;
-                break;
+            for (int i = 0; i < pv_table[0].size; i++) {
+                move_print(pv_table[0].moves[i]);
+                printf(" ");
             }
 
-            if (score > best_score) {
-                best_score = score;
-                current_best_move = move;
-            }
+            printf("\n");
         }
 
-        if (depth_completed) {
-            last_completed_best_move = current_best_move;
-            printf("Depth %d: Best move eval = %.2f\n", depth, (float)best_score/100.0f);
-        } else {
-            printf("Depth %d: Search incomplete (time limit)\n", depth);
-            break;
-        }
     }
 
-    return last_completed_best_move;
+    return best_move;
 }
 
 int quiesce(Position *position, int alpha, int beta) {
@@ -152,20 +163,23 @@ int quiesce(Position *position, int alpha, int beta) {
     }
 
     if (position_is_game_over(position)) {
-        return INF - position->ply;
+        return INF - search_ply;
     }
 
     int stand_pat = eval(position);
-    int best_value = stand_pat;
-    if (stand_pat >= beta)
+    if (stand_pat >= beta) {
         return stand_pat;
-    if (alpha < stand_pat)
+    }
+
+    if (alpha < stand_pat) {
         alpha = stand_pat;
+    }
 
     MoveList move_list;
     move_list.size = 0;
     legal_moves(position, &move_list);
-    // sort_move_list(&move_list);
+    tt_best_move_flag = FLAG_NULL;
+    sort_move_list(&move_list);
 
     for (int i = 0; i < move_list.size; i++) {
         Move move = move_list.moves[i];
@@ -190,20 +204,23 @@ int quiesce(Position *position, int alpha, int beta) {
 
         int score = -quiesce(&new_position, -beta, -alpha);
 
-        if (score >= beta)
-            return score;
-        if (score > best_value)
-            best_value = score;
-        if (score > alpha)
+        if (score > alpha) {
             alpha = score;
+
+            if (score >= beta) {
+                return beta;
+            }
+        }
     }
 
-    return best_value;
+    return alpha;
 }
 
 int alpha_beta(Position *position, int depth, int alpha, int beta) {
+    pv_table[search_ply].size = search_ply;
+
     if (position_is_game_over(position)) {
-        return INF - position->ply;
+        return INF - search_ply;
     }
 
     // Check every 1000 nodes
@@ -217,7 +234,9 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
     int tt_value = tt_get(position, depth, alpha, beta, &tt_best_move);
     packed_move_extract(tt_best_move, &tt_best_move_flag, &tt_best_move_from, &tt_best_move_to);
 
-    if (tt_value != TT_MISS) {
+    int pv_node = beta - alpha > 1;
+
+    if (search_ply > 0 && tt_value != TT_MISS && pv_node == 0) {
         return tt_value;
     }
 
@@ -230,46 +249,79 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
     MoveList move_list;
     move_list.size = 0;
     legal_moves(position, &move_list);
-    sort_move_list(&move_list);
 
-    if (move_list.size == 0) {
-        return -INF + position->ply;
+    if (follow_pv) {
+        follow_pv = false;
+
+        // Iterate over the move list to see if one is part of the PV
+        for (int i = 0; i < move_list.size; i++) {
+            Move move = move_list.moves[i];
+            Move pv_move = pv_table[0].moves[search_ply];
+            if (pv_move.from == move.from && pv_move.to == move.to && pv_move.captures == move.captures) {
+                pv_sorting = true;
+                follow_pv = true;
+            }
+        }
     }
 
-    int best_value = -INF;
+    sort_move_list(&move_list);
+
+    if (follow_pv) {
+        Move fst = move_list.moves[0];
+        Move snd = pv_table[0].moves[search_ply];
+        assert(fst.from == snd.from && fst.to == snd.to);
+    }
+
     Move best_move = {0};
 
-    int original_alpha = alpha;
+    EntryType tt_entry_type = ENTRY_TYPE_ALPHA;
+    bool searched_first_move = false;
 
     for (int i = 0; i < move_list.size; i++) {
         Move move = move_list.moves[i];
         Position new_position = make_move(position, move);
-        int score = -alpha_beta(&new_position, depth - 1, -beta, -alpha);
 
-        if (score > best_value) {
-            best_value = score;
-            best_move = move;
-            if (score > alpha) {
-                alpha = score;
+        search_ply++;
+
+        int score;
+
+        if (!searched_first_move) {
+            score = -alpha_beta(&new_position, depth - 1, -beta, -alpha);
+            searched_first_move = true;
+        } else {
+            score = -alpha_beta(&new_position, depth - 1, -alpha - 1, -alpha);
+
+            if (score > alpha && score < beta) {
+                score = -alpha_beta(&new_position, depth - 1, -beta, -alpha);
             }
         }
 
-        if (alpha >= beta) {
-            PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);
-            tt_set(position, depth, best_value, ENTRY_TYPE_BETA, best_move_packed);
-            return best_value;
+        search_ply--;
+
+        if (score > alpha) {
+            tt_entry_type = ENTRY_TYPE_EXACT;
+            alpha = score;
+            pv_table[search_ply].moves[search_ply] = move;
+
+            best_move = move;
+
+            for (int next_ply = search_ply + 1; next_ply < pv_table[search_ply + 1].size; next_ply++) {
+                pv_table[search_ply].moves[next_ply] = pv_table[search_ply + 1].moves[next_ply];
+            }
+
+            pv_table[search_ply].size = pv_table[search_ply + 1].size;
+
+            if (score >= beta) {
+                PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);
+                tt_set(position, depth, beta, best_move_packed, ENTRY_TYPE_BETA);
+                return beta;
+            }
+
         }
     }
 
-    EntryType type;
-    if (best_value <= original_alpha) {
-        type = ENTRY_TYPE_ALPHA;  // Fail-low: search did not improve alpha
-    } else {
-        type = ENTRY_TYPE_EXACT;  // Score is between alpha and beta
-    }
-
     PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);
-    tt_set(position, depth, best_value, type, best_move_packed);
+    tt_set(position, depth, alpha, tt_entry_type, best_move_packed);
 
-    return best_value;
+    return alpha;
 }

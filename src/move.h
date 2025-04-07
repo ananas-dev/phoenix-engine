@@ -32,3 +32,5 @@ static inline void packed_move_extract(PackedMove move, PackedMoveFlag *flag, Sq
     *from = (Square) ((move >> 6) & 0x3F); // 6 bits
     *to = (Square) (move & 0x3F); // 6 bits
 }
+
+void move_print(Move move);
