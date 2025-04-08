@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
@@ -25,6 +26,7 @@ bool tt_best_move_sorting;
 
 #define MAX_PLY 128
 #define PV_TABLE_SIZE 64
+#define MAX_HISTORY 1000
 
 typedef struct {
     Move moves[PV_TABLE_SIZE];
@@ -37,6 +39,7 @@ bool follow_pv = true;
 
 Move killer_moves[2][MAX_PLY];
 int history[NUM_COLOR][NUM_SQUARE][NUM_SQUARE];
+
 
 int search_ply = 0;
 
@@ -340,7 +343,10 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
                 if (bb_is_empty(move.captures)) {
                     killer_moves[1][search_ply] = killer_moves[0][search_ply];
                     killer_moves[0][search_ply] = move;
-                    history[position->side_to_move][move.from][move.to] += depth * depth;
+                    // Taken from https://www.chessprogramming.org/History_Heuristic
+                    int clampedBonus = depth * depth;
+                    history[position->side_to_move][move.from][move.to]
+                        += clampedBonus - history[position->side_to_move][move.from][move.to] * abs(clampedBonus) / MAX_HISTORY;
                 }
 
 
