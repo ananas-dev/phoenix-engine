@@ -12,31 +12,31 @@ int distance[NUM_SQUARE][NUM_SQUARE];
 int soldier_position_reward[NUM_SQUARE] = {
     20, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 10, 10, 0, 0, 0,
-    0, 0, 20, 20, 200, 200, 0, 0,
-    0, 0, 20, 200, 200, 20, 0, 0,
-    0, 0, 200, 200, 20, 20, 0, 0,
+    0, 0, 20, 50, 50, 50, 0, 0,
+    0, 0, 20, 50, 50, 20, 0, 0,
+    0, 0, 50, 50, 50, 20, 0, 0,
     0, 0, 0, 10, 10, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 20,
 };
 
-const int center_reward[NUM_SQUARE] = {
-    0, 1, 2, 2, 2, 2, 1, 0,
+const int soldier_center_reward[NUM_SQUARE] = {
+    3, 1, 2, 2, 2, 2, 1, 0,
     2, 2, 3, 3, 3, 3, 2, 1,
     2, 3, 4, 4, 4, 4, 3, 2,
     2, 3, 4, 5, 5, 4, 3, 2,
     2, 3, 4, 4, 4, 4, 3, 2,
     1, 2, 3, 3, 3, 3, 2, 1,
-    0, 1, 2, 2, 2, 2, 1, 0,
-  };
+    0, 1, 2, 2, 2, 2, 1, 3,
+};
 
-int king_endgame_position_reward[NUM_SQUARE] = {
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 10, 10, 0, 0, 0,
-    0, 0, 20, 15, 200, 200, 0, 0,
-    0, 0, 20, 200, 200, 20, 0, 0,
-    0, 0, 200, 200, 20, 20, 0, 0,
-    0, 0, 0, 10, 10, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 20,
+const int center_reward[NUM_SQUARE] = {
+    -1, 1, 2, 2, 2, 2, 1, -1,
+    1, 2, 3, 3, 3, 3, 2, 1,
+    2, 3, 4, 4, 4, 4, 3, 2,
+    2, 3, 4, 5, 5, 4, 3, 2,
+    2, 3, 4, 4, 4, 4, 3, 2,
+    1, 2, 3, 3, 3, 3, 2, 1,
+    -1, 1, 2, 2, 2, 2, 1, -1,
 };
 
 void eval_init() {
@@ -63,8 +63,10 @@ static inline int mobility(Position *position, Color color, Bitboard color_piece
         king_mobility |= king_attacks(from) & ~color_pieces;
     }
 
-    return 16 * bb_popcnt(general_mobility) + 1 * bb_popcnt(king_mobility);
+    return 8 * bb_popcnt(general_mobility) + 1 * bb_popcnt(king_mobility);
 }
+
+
 
 int eval(Position *position) {
     int turn = position->side_to_move == COLOR_WHITE ? 1 : -1;
@@ -111,14 +113,14 @@ int eval(Position *position) {
     Bitboard white_soldier_it = position->pieces[COLOR_WHITE][PIECE_SOLDIER] & BB_USED;
     while (white_soldier_it) {
         Square from = bb_it_next(&white_soldier_it);
-        white_soldier_position_score += soldier_position_reward[from];
+        white_soldier_position_score += soldier_center_reward[from] * 5;
     }
 
     int black_soldier_position_score = 0;
     Bitboard black_soldier_it = position->pieces[COLOR_BLACK][PIECE_SOLDIER] & BB_USED;
     while (black_soldier_it) {
         Square from = bb_it_next(&black_soldier_it);
-        black_soldier_position_score += soldier_position_reward[from];
+        black_soldier_position_score += soldier_center_reward[from] * 5;
     }
 
     int soldier_position_score = white_soldier_position_score - black_soldier_position_score;
@@ -127,21 +129,21 @@ int eval(Position *position) {
     int black_king_protection = 0;
 
     if (num_white_king > 0) {
-        int cnt = 15 * bb_popcnt(king_attacks(white_king_pos) & white_pieces);
+        int cnt = bb_popcnt(king_attacks(white_king_pos) & white_pieces);
         if (cnt <= 2) {
-            white_king_protection = 15 * cnt;
+            white_king_protection = 10 * cnt;
         } else {
             // After 2 pieces, each additional piece contributes less
-            white_king_protection = 15 * 2 + (cnt - 2) * 7;
+            white_king_protection = 10 * 2 + (cnt - 2) * 5;
         }
     }
     if (num_black_king > 0) {
-        int cnt = 15 * bb_popcnt(king_attacks(black_king_pos) & black_pieces);
+        int cnt = bb_popcnt(king_attacks(black_king_pos) & black_pieces);
         if (cnt <= 2) {
-            black_king_protection = 15 * cnt;
+            black_king_protection = 10 * cnt;
         } else {
             // After 2 pieces, each additional piece contributes less
-            black_king_protection = 15 * 2 + (cnt - 2) * 7;
+            black_king_protection = 10 * 2 + 5 * (cnt - 2);
         }
     }
 
