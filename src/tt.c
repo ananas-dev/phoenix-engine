@@ -1,6 +1,7 @@
 #include "tt.h"
 #include <stdlib.h>
 #include <assert.h>
+#include <stdio.h>
 
 Entry *tt;
 int tt_size;
