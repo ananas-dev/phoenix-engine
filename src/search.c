@@ -2,9 +2,7 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <sys/time.h>
 
 #include "eval.h"
@@ -346,7 +344,7 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
                     // Taken from https://www.chessprogramming.org/History_Heuristic
                     int clampedBonus = depth * depth;
                     history[position->side_to_move][move.from][move.to]
-                        += clampedBonus - history[position->side_to_move][move.from][move.to] * abs(clampedBonus) / MAX_HISTORY;
+                        += clampedBonus - history[position->side_to_move][move.from][move.to] * clampedBonus / MAX_HISTORY;
                 }
 
 
