@@ -5,13 +5,10 @@
 #include <string.h>
 
 static uint64_t random_u64() {
-    static uint64_t number = 0xFFAAB58C5833FE89;
+    static uint64_t next = 1;
 
-    number ^= number << 13;
-    number ^= number >> 17;
-    number ^= number << 5;
-
-    return number;
+    next = next * 1103515245 + 12345;
+    return next;
 }
 
 typedef struct {
@@ -447,6 +444,8 @@ void append_stacks(Position *pos, MoveList *move_list, Bitboard stack_targets) {
 }
 
 void legal_moves(Position *pos, MoveList *move_list) {
+    move_list->size = 0;
+
     Color color = pos->side_to_move;
 
     Bitboard my_pieces = pieces_by_color(pos, color);

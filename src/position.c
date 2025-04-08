@@ -14,13 +14,10 @@ typedef struct {
 Zobrists zobrists;
 
 static uint64_t random_u64() {
-    static uint64_t number = 0xFFAAB58C5833FE89;
+    static uint64_t next = 1;
 
-    number ^= number << 13;
-    number ^= number >> 17;
-    number ^= number << 5;
-
-    return number;
+    next = next * 1103515245 + 12345;
+    return next;
 }
 
 void position_init() {
@@ -63,18 +60,6 @@ uint64_t position_hash(const Position *position) {
     }
 
     return hash;
-}
-
-Position make_null_move(Position *pos) {
-    Position new_pos = *pos;
-
-    new_pos.can_create_general = false;
-    new_pos.can_create_king = false;
-
-    new_pos.ply++;
-    new_pos.side_to_move = 1 - new_pos.side_to_move;
-
-    return new_pos;
 }
 
 Position make_move(Position *pos, Move move) {
