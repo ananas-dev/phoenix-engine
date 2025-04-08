@@ -46,13 +46,13 @@ Move act(char *position, double time_remaining) {
     double allocated_time = 10.0;
 
     // Basic time management
-    if (allocated_time > 100.0) {
+    if (time_remaining < 100.0) {
         allocated_time = 5.0;
-    } if (allocated_time > 30.0) {
+    } if (time_remaining < 30.0) {
         allocated_time = 3.0;
-    } else if (time_remaining > 10.0) {
+    } else if (time_remaining < 10.0) {
         allocated_time = 1.0;
-    } else if (time_remaining > 3.0) {
+    } else if (time_remaining < 3.0) {
         allocated_time = 0.1;
     }
 
