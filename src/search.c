@@ -90,7 +90,7 @@ int weight_move(Move move, Color side_to_move) {
     return 0;
 }
 
-// Here we use insertion sort since the move list is small and almost sorted
+// Here we use insertion sort since the move list is small
 void sort_move_list(MoveList *move_list, Color side_to_move) {
     tt_best_move_sorting = (tt_best_move_flag != FLAG_NULL);
 
