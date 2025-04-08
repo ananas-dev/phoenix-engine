@@ -142,8 +142,6 @@ Move search(Position *position, double max_time_seconds) {
     int alpha = -INF;
     int beta = INF;
 
-    Move best_move = {0};
-
     for (int depth = 1; depth <= 100; depth++) {
         if (time_over) {
             break;
@@ -153,9 +151,11 @@ Move search(Position *position, double max_time_seconds) {
 
         int score = alpha_beta(position, depth, alpha, beta);
 
-        best_move = pv_table[0].moves[0];
-
-        printf("Depth=%d, Score=%.2f\n", depth, (float)score/100.0f);
+        if (time_over) {
+            printf("Depth=%d, Score=/\n", depth);
+        } else {
+            printf("Depth=%d, Score=%.2f\n", depth, (float)score/100.0f);
+        }
 
         for (int i = 0; i < pv_table[0].size; i++) {
             move_print(pv_table[0].moves[i]);
@@ -166,7 +166,7 @@ Move search(Position *position, double max_time_seconds) {
 
         // Return early if mate is found
         if (score >= INF - MAX_PLY) {
-            return best_move;
+            return pv_table[0].moves[0];
         }
 
     }
