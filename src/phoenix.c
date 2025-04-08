@@ -14,7 +14,7 @@ void init() {
     movegen_init();
     position_init();
     eval_init();
-    tt_init(65536); // 2 ^ 16
+    tt_init(16777216); // 2 ^ 24
     srand(time(NULL));
 }
 
@@ -23,7 +23,7 @@ void test() {
 
     position_print(&pos);
 
-    Move move = search(&pos, 10.0);
+    Move move = search(&pos, 45.0);
 
     char from[3];
     char to[3];
