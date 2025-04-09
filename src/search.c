@@ -12,45 +12,6 @@
 
 #define INF 100000
 
-typedef struct {
-    // Search state
-    int nodes_visited;
-    struct timeval start_time;
-    double max_time;
-    bool time_over;
-
-    // Move ordering state
-    PackedMoveFlag tt_best_move_flag;
-    Square tt_best_move_from;
-    Square tt_best_move_to;
-    bool tt_best_move_sorting;
-
-    // Principal variation table
-    PVLine pv_table[MAX_PLY];
-    bool pv_sorting;
-    bool follow_pv;
-
-    // Move ordering heuristics
-    Move killer_moves[2][MAX_PLY];
-    int history[NUM_COLOR][NUM_SQUARE][NUM_SQUARE];
-
-    // Current search depth
-    int search_ply;
-} SearchState;
-
-#define MAX_PLY 128
-#define PV_TABLE_SIZE 64
-#define MAX_HISTORY 1000
-PVLine pv_table[MAX_PLY];
-bool pv_sorting = true;
-bool follow_pv = true;
-
-Move killer_moves[2][MAX_PLY];
-int history[NUM_COLOR][NUM_SQUARE][NUM_SQUARE];
-
-
-int search_ply = 0;
-
 double get_elapsed_time(State *state) {
     struct timeval now;
     gettimeofday(&now, NULL);
@@ -71,18 +32,18 @@ int weight_move(State *state, Move move, Color side_to_move) {
         return 69000;
     }
 
-    if (pv_sorting) {
-        Move pv_move = pv_table[0].moves[search_ply];
+    if (state->pv_sorting) {
+        Move pv_move = state->pv_table[0].moves[state->search_ply];
         if (pv_move.from == move.from && pv_move.to == move.to && pv_move.captures == move.captures) {
-            pv_sorting = false;
+            state->pv_sorting = false;
             return 42000;
         }
     }
 
     // If move is not a capture we can use killer moves and history moves to improve
     if (bb_is_empty(move.captures)) {
-        Move killer_move_1 = killer_moves[0][search_ply];
-        Move killer_move_2 = killer_moves[1][search_ply];
+        Move killer_move_1 = state->killer_moves[0][state->search_ply];
+        Move killer_move_2 = state->killer_moves[1][state->search_ply];
 
         if (killer_move_1.from == move.from && killer_move_1.to == move.to) {
             return 6900;
@@ -92,7 +53,7 @@ int weight_move(State *state, Move move, Color side_to_move) {
             return 4200;
         }
 
-        return history[side_to_move][move.from][move.to];
+        return state->history[side_to_move][move.from][move.to];
     }
 
     return 0;
@@ -136,14 +97,14 @@ void update_clock(State *state) {
 int alpha_beta(State *state, Position *position, int depth, int alpha, int beta);
 
 Move search(State *state, Position *position, double max_time_seconds) {
-    search_ply = 0;
+    state->search_ply = 0;
 
-    memset(pv_table, 0, sizeof(pv_table));
-    memset(killer_moves, 0, sizeof(killer_moves));
-    memset(history, 0, sizeof(history));
+    memset(state->pv_table, 0, sizeof(state->pv_table));
+    memset(state->killer_moves, 0, sizeof(state->killer_moves));
+    memset(state->history, 0, sizeof(state->history));
 
-    follow_pv = false;
-    pv_sorting = false;
+    state->follow_pv = false;
+    state->pv_sorting = false;
 
     state->time_over = false;
     state->nodes_visited = 0;
@@ -158,7 +119,7 @@ Move search(State *state, Position *position, double max_time_seconds) {
             break;
         }
 
-        follow_pv = true;
+        state->follow_pv = true;
 
         int score = alpha_beta(state, position, depth, alpha, beta);
 
@@ -168,8 +129,8 @@ Move search(State *state, Position *position, double max_time_seconds) {
             printf("Depth=%d, Score=%.2f\n", depth, (float)score/100.0f);
         }
 
-        for (int i = 0; i < pv_table[0].size; i++) {
-            move_print(pv_table[0].moves[i]);
+        for (int i = 0; i < state->pv_table[0].size; i++) {
+            move_print(state->pv_table[0].moves[i]);
             printf(" ");
         }
 
@@ -177,12 +138,12 @@ Move search(State *state, Position *position, double max_time_seconds) {
 
         // Return early if mate is found
         if (score >= INF - MAX_PLY) {
-            return pv_table[0].moves[0];
+            return state->pv_table[0].moves[0];
         }
 
     }
 
-    return pv_table[0].moves[0];
+    return state->pv_table[0].moves[0];
 }
 
 int quiesce(State *state, Position *position, int alpha, int beta) {
@@ -191,7 +152,7 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
     }
 
     if (position_is_game_over(position)) {
-        return INF - search_ply;
+        return INF - state->search_ply;
     }
 
     int stand_pat = eval(state, position);
@@ -229,13 +190,13 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
             }
         }
 
-        search_ply++;
+        state->search_ply++;
 
         Position new_position = make_move(state, position, move);
 
         int score = -quiesce(state, &new_position, -beta, -alpha);
 
-        search_ply--;
+        state->search_ply--;
 
         if (state->time_over) {
             return 0;
@@ -254,10 +215,10 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
 }
 
 int alpha_beta(State *state, Position *position, int depth, int alpha, int beta) {
-    pv_table[search_ply].size = search_ply;
+    state->pv_table[state->search_ply].size = state->search_ply;
 
     if (position_is_game_over(position)) {
-        return INF - search_ply;
+        return INF - state->search_ply;
     }
 
     // Update clock from time to time
@@ -271,7 +232,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
 
     int pv_node = beta - alpha > 1;
 
-    if (search_ply > 0 && tt_value != TT_MISS && pv_node == 0) {
+    if (state->search_ply > 0 && tt_value != TT_MISS && pv_node == 0) {
         return tt_value;
     }
 
@@ -285,16 +246,16 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     move_list.size = 0;
     legal_moves(state, position, &move_list);
 
-    if (follow_pv) {
-        follow_pv = false;
+    if (state->follow_pv) {
+        state->follow_pv = false;
 
         // Iterate over the move list to see if one is part of the PV
         for (int i = 0; i < move_list.size; i++) {
             Move move = move_list.moves[i];
-            Move pv_move = pv_table[0].moves[search_ply];
+            Move pv_move = state->pv_table[0].moves[state->search_ply];
             if (pv_move.from == move.from && pv_move.to == move.to && pv_move.captures == move.captures) {
-                pv_sorting = true;
-                follow_pv = true;
+                state->pv_sorting = true;
+                state->follow_pv = true;
             }
         }
     }
@@ -311,7 +272,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
         Move move = move_list.moves[i];
         Position new_position = make_move(state, position, move);
 
-        search_ply++;
+        state->search_ply++;
 
         int score;
 
@@ -326,7 +287,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
             }
         }
 
-        search_ply--;
+        state->search_ply--;
 
         if (state->time_over) {
             return 0;
@@ -335,28 +296,28 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
         if (score > alpha) {
             tt_entry_type = ENTRY_TYPE_EXACT;
             alpha = score;
-            pv_table[search_ply].moves[search_ply] = move;
+            state->pv_table[state->search_ply].moves[state->search_ply] = move;
 
             best_move = move;
             best_move_valid = true;
 
-            for (int next_ply = search_ply + 1; next_ply < pv_table[search_ply + 1].size; next_ply++) {
-                pv_table[search_ply].moves[next_ply] = pv_table[search_ply + 1].moves[next_ply];
+            for (int next_ply = state->search_ply + 1; next_ply < state->pv_table[state->search_ply + 1].size; next_ply++) {
+                state->pv_table[state->search_ply].moves[next_ply] = state->pv_table[state->search_ply + 1].moves[next_ply];
             }
 
-            pv_table[search_ply].size = pv_table[search_ply + 1].size;
+            state->pv_table[state->search_ply].size = state->pv_table[state->search_ply + 1].size;
 
             if (score >= beta) {
                 PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, move.from, move.to);
                 tt_set(state, position, depth, beta, ENTRY_TYPE_BETA, best_move_packed);
 
                 if (bb_is_empty(move.captures)) {
-                    killer_moves[1][search_ply] = killer_moves[0][search_ply];
-                    killer_moves[0][search_ply] = move;
+                    state->killer_moves[1][state->search_ply] = state->killer_moves[0][state->search_ply];
+                    state->killer_moves[0][state->search_ply] = move;
                     // Taken from https://www.chessprogramming.org/History_Heuristic
                     int clampedBonus = depth * depth;
-                    history[position->side_to_move][move.from][move.to]
-                        += clampedBonus - history[position->side_to_move][move.from][move.to] * clampedBonus / MAX_HISTORY;
+                    state->history[position->side_to_move][move.from][move.to]
+                        += clampedBonus - state->history[position->side_to_move][move.from][move.to] * clampedBonus / MAX_HISTORY;
                 }
 
 
