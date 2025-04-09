@@ -13,6 +13,7 @@
 ## Inspirations and resources
 
 - The tetris IA we build for a hackathon: https://github.com/ananas-dev/denis
+- The bitboard chess engine YouTube series: https://www.youtube.com/watch?v=QUNP-UjujBM&list=PLmN0neTso3Jxh8ZIylk74JpwfiWNI76Cs
 
 ### Move generation
 
@@ -37,7 +38,3 @@
 
 - My third try at a chess engine: https://github.com/Team-Denis/BestHackathon3/tree/main/chess/src
 - Evaluation: https://www.chessprogramming.org/Evaluation
-
-### Global
-
-The bitboard chess engine YouTube series: https://www.youtube.com/watch?v=QUNP-UjujBM&list=PLmN0neTso3Jxh8ZIylk74JpwfiWNI76Cs
