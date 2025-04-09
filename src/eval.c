@@ -98,7 +98,8 @@ int eval(State *state, Position *position) {
 
     // Don't care about material in setup phase
     if (position->ply >= 10) {
-        material_score = 900 * (num_white_general - num_black_general)
+        material_score = 10000 * (num_white_king - num_black_king)
+                         + 900 * (num_white_general - num_black_general)
                          + 100 * (num_white_solider - num_black_solider);
     }
 
