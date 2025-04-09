@@ -9,6 +9,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     )
 endif()
 
+add_compile_options(
+        -Wall          # Enable most warnings
+        -Wextra        # Enable extra warnings
+)
+
 add_subdirectory(vendor/Unity-2.6.1)
 
 add_library(clippy SHARED

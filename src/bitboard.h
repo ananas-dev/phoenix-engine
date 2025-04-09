@@ -36,7 +36,7 @@ static inline __attribute__((always_inline)) bool bb_is_empty(Bitboard bb) {
 
 static inline __attribute__((always_inline)) Bitboard bb_from_sq(Square sq) {
   return 1ULL << sq;
-};
+}
 
 static inline __attribute__((always_inline)) Square bb_it_next(Bitboard* b) {
   Square s = __builtin_ctzll(*b);

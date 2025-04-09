@@ -14,8 +14,8 @@ typedef struct {
 } MoveList;
 
 typedef enum {
-    FLAG_NULL = 0b0000,
-    FLAG_NORMAL = 0b0001,
+    FLAG_NULL = 0,
+    FLAG_NORMAL = 1,
 } PackedMoveFlag;
 
 // Flag (4 bits) + From (6 bits) + To (6 bits)

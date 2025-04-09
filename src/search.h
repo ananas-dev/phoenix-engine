@@ -1,5 +1,6 @@
 #pragma once
 
 #include "position.h"
+#include "state.h"
 
-Move search(Position *position, double max_time_seconds);
+Move search(State *state, Position *position, double max_time_seconds);

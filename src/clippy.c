@@ -10,35 +10,20 @@
 #include "search.h"
 #include "tt.h"
 
-void init() {
-    movegen_init();
-    position_init();
-    eval_init();
-    tt_init(16777216); // 2 ^ 24
-    srand(time(NULL));
+State* init(void) {
+    State* state = malloc(sizeof(State));
+    movegen_init(state);
+    position_init(state);
+    eval_init(state);
+    tt_init(state, 16777216);
+
+    return state;
 }
 
-void test() {
-    Position pos = position_from_fen("1S2K3/GSGSS2s/SSSS2s1/SSS2ssg/SS2sss1/S3gssg/2ssss1g 8 w 00");
-
-    position_print(&pos);
-
-    Move move = search(&pos, 45.0);
-
-    char from[3];
-    char to[3];
-
-    sq_to_string(move.from, from);
-    sq_to_string(move.to, to);
-
-    printf("Move:\n");
-    printf("  from: %s\n", from);
-    printf("  to: %s\n", to);
-    printf("  captures:\n");
-    bb_print(move.captures);
+void test(void) {
 }
 
-Move act(char *position, double time_remaining) {
+Move act(State* state, char *position, double time_remaining) {
     Position pos = position_from_fen(position);
 
     position_print(&pos);
@@ -56,5 +41,10 @@ Move act(char *position, double time_remaining) {
         allocated_time = 0.1;
     }
 
-    return search(&pos, allocated_time);
+    return search(state, &pos, allocated_time);
+}
+
+void destroy(State *state) {
+    free(state->tt);
+    free(state);
 }

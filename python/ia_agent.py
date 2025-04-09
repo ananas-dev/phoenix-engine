@@ -80,19 +80,26 @@ class Move(ctypes.Structure):
         ("dst", ctypes.c_uint8),
     ]
 
+class State(ctypes.Structure):
+    pass
+
+StatePtr = ctypes.POINTER(State)
+
 class IAAgent(Agent):
     def __init__(self, player):
         super().__init__(player)
-        self.lib = ctypes.CDLL("../build/libphoenix.so")
-        self.lib.act.argtypes = [ctypes.c_char_p, ctypes.c_double]
+        self.lib = ctypes.CDLL("../cmake-build-release/libclippy.so")
+        self.lib.act.argtypes = [StatePtr, ctypes.c_char_p, ctypes.c_double]
         self.lib.act.restype = Move
-        self.lib.init()
+        self.lib.init.restype = StatePtr
+        self.lib.destroy.argtypes = [StatePtr]
+        self.state = self.lib.init()
 
     def act(self, state, remaining_time):
         fen = state_to_fen(state)
         print(fen)
 
-        move = self.lib.act(fen.encode("utf-8"), remaining_time)
+        move = self.lib.act(self.state, fen.encode("utf-8"), remaining_time)
 
         src_file = move.src & 7
         src_rank = move.src >> 3
@@ -110,3 +117,6 @@ class IAAgent(Agent):
 
         action = FenixAction((6 - src_rank, src_file), (6 - dst_rank, dst_file), frozenset(deleted))
         return action
+
+    def __del__(self):
+        self.lib.destroy(self.state)

@@ -7,8 +7,6 @@
 #include "bitboard.h"
 #include "movegen.h"
 
-int distance[NUM_SQUARE][NUM_SQUARE];
-
 int soldier_position_reward[NUM_SQUARE] = {
     20, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 10, 10, 0, 0, 0,
@@ -39,28 +37,28 @@ const int center_reward[NUM_SQUARE] = {
     -1, 1, 2, 2, 2, 2, 1, -1,
 };
 
-void eval_init() {
+void eval_init(State *state) {
     for (Square i = SQ_A1; i <= SQ_H7; i++) {
         for (Square j = SQ_A1; j <= SQ_H7; j++) {
-            distance[i][j] = 13 - (abs(sq_file(i) - sq_file(j)) + abs(sq_rank(i) - sq_rank(j)));
+            state->distance[i][j] = 13 - (abs(sq_file(i) - sq_file(j)) + abs(sq_rank(i) - sq_rank(j)));
         }
     }
 }
 
-static inline int mobility(Position *position, Color color, Bitboard color_pieces, Bitboard all_pieces) {
+static inline int mobility(State *state, Position *position, Color color, Bitboard color_pieces, Bitboard all_pieces) {
     Bitboard general_mobility = BB_EMPTY;
     Bitboard king_mobility = BB_EMPTY;
 
     Bitboard general_it = position->pieces[color][PIECE_GENERAL] & BB_USED;
     while (general_it) {
         Square from = bb_it_next(&general_it);
-        general_mobility |= general_attacks(from, all_pieces) & ~color_pieces;
+        general_mobility |= general_attacks(state, from, all_pieces) & ~color_pieces;
     }
 
     Bitboard king_it = position->pieces[color][PIECE_KING] & BB_USED;
     while (king_it) {
         Square from = bb_it_next(&king_it);
-        king_mobility |= king_attacks(from) & ~color_pieces;
+        king_mobility |= king_attacks(state, from) & ~color_pieces;
     }
 
     return 8 * bb_popcnt(general_mobility) + 1 * bb_popcnt(king_mobility);
@@ -68,7 +66,7 @@ static inline int mobility(Position *position, Color color, Bitboard color_piece
 
 
 
-int eval(Position *position) {
+int eval(State *state, Position *position) {
     int turn = position->side_to_move == COLOR_WHITE ? 1 : -1;
 
     int material_score = 0;
@@ -104,8 +102,8 @@ int eval(Position *position) {
                          + 100 * (num_white_solider - num_black_solider);
     }
 
-    int white_mobility = mobility(position, COLOR_WHITE, white_pieces, all_pieces);
-    int black_mobility = mobility(position, COLOR_BLACK, black_pieces, all_pieces);
+    int white_mobility = mobility(state, position, COLOR_WHITE, white_pieces, all_pieces);
+    int black_mobility = mobility(state, position, COLOR_BLACK, black_pieces, all_pieces);
 
     int mobility_score = white_mobility - black_mobility;
 
@@ -129,7 +127,7 @@ int eval(Position *position) {
     int black_king_protection = 0;
 
     if (num_white_king > 0) {
-        int cnt = bb_popcnt(king_attacks(white_king_pos) & white_pieces);
+        int cnt = bb_popcnt(king_attacks(state, white_king_pos) & white_pieces);
         if (cnt <= 2) {
             white_king_protection = 10 * cnt;
         } else {
@@ -138,7 +136,7 @@ int eval(Position *position) {
         }
     }
     if (num_black_king > 0) {
-        int cnt = bb_popcnt(king_attacks(black_king_pos) & black_pieces);
+        int cnt = bb_popcnt(king_attacks(state, black_king_pos) & black_pieces);
         if (cnt <= 2) {
             black_king_protection = 10 * cnt;
         } else {
@@ -159,12 +157,12 @@ int eval(Position *position) {
     if (position->ply >= 10) {
         if (num_black_king > 0 && num_white_king > 0) {
             if (num_black_general == 0 && num_white_general > 0) {
-                lone_king_distance_white = distance[white_king_pos][black_king_pos] * 30;
+                lone_king_distance_white = state->distance[white_king_pos][black_king_pos] * 30;
                 lone_king_center_reward_black = center_reward[black_king_pos] * 10;
             }
 
             if (num_white_general == 0 && num_black_general > 0) {
-                lone_king_distance_black = distance[white_king_pos][black_king_pos] * 30;
+                lone_king_distance_black = state->distance[white_king_pos][black_king_pos] * 30;
                 lone_king_center_reward_white = center_reward[white_king_pos] * 10;
             }
         }
@@ -181,4 +179,4 @@ int eval(Position *position) {
                + lone_king_distance_score
                + lone_king_center_score
            ) * turn;
-};
+}

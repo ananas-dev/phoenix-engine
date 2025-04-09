@@ -1,19 +1,16 @@
 #include "tt.h"
 #include <stdlib.h>
 #include <assert.h>
-#include <stdio.h>
 
-Entry *tt;
-int tt_size;
-
-void tt_init(int size) {
-    tt = malloc(sizeof(Entry) * size);
-    tt_size = size;
+void tt_init(State *state, int size) {
+    Entry *tt = malloc(sizeof(Entry) * size);
     assert(tt != NULL && "Could not init transposition table");
+    state->tt = tt;
+    state->tt_size = size;
 }
 
-void tt_set(Position *position, uint8_t depth, int val, EntryType type, PackedMove best_move) {
-    Entry *entry = &tt[position->hash & (tt_size - 1)];
+void tt_set(State *state, Position *position, uint8_t depth, int val, EntryType type, PackedMove best_move) {
+    Entry *entry = &state->tt[position->hash & (state->tt_size - 1)];
 
     if ((position->hash == entry->hash) && (depth <= entry->depth)) return;
 
@@ -26,8 +23,8 @@ void tt_set(Position *position, uint8_t depth, int val, EntryType type, PackedMo
     };
 }
 
-int tt_get(Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move) {
-    Entry *entry = &tt[position->hash & (tt_size - 1)];
+int tt_get(State *state, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move) {
+    Entry *entry = &state->tt[position->hash & (state->tt_size - 1)];
 
     if (position->hash == entry->hash) {
         *best_move = entry->best_move;
@@ -50,6 +47,6 @@ int tt_get(Position *position, uint8_t depth, int alpha, int beta, PackedMove *b
     return TT_MISS;
 }
 
-void tt_free() {
+void tt_free(Entry *tt) {
     free(tt);
 }
