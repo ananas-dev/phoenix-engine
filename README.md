@@ -12,6 +12,8 @@
 ```
 ## Inspirations and resources
 
+- The tetris IA we build for a hackathon: https://github.com/ananas-dev/denis
+
 ### Move generation
 
 - My first try at a chess engine: https://github.com/ananas-dev/gelato-engine
