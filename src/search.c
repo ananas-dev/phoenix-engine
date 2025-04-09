@@ -70,7 +70,7 @@ int weight_move(Move move, Color side_to_move) {
     }
 
     // If move is not a capture we can use killer moves and history moves to improve
-    if (!bb_is_empty(move.captures)) {
+    if (bb_is_empty(move.captures)) {
         Move killer_move_1 = killer_moves[0][search_ply];
         Move killer_move_2 = killer_moves[1][search_ply];
 
@@ -186,7 +186,7 @@ int quiesce(Position *position, int alpha, int beta) {
 
     int stand_pat = eval(position);
     if (stand_pat >= beta) {
-        return stand_pat;
+        return beta;
     }
 
     if (alpha < stand_pat) {
@@ -292,6 +292,7 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
     sort_move_list(&move_list, position->side_to_move);
 
     Move best_move = {0};
+    bool best_move_valid = false;
 
     EntryType tt_entry_type = ENTRY_TYPE_ALPHA;
     bool searched_first_move = false;
@@ -327,6 +328,7 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
             pv_table[search_ply].moves[search_ply] = move;
 
             best_move = move;
+            best_move_valid = true;
 
             for (int next_ply = search_ply + 1; next_ply < pv_table[search_ply + 1].size; next_ply++) {
                 pv_table[search_ply].moves[next_ply] = pv_table[search_ply + 1].moves[next_ply];
@@ -335,7 +337,7 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
             pv_table[search_ply].size = pv_table[search_ply + 1].size;
 
             if (score >= beta) {
-                PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);
+                PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, move.from, move.to);
                 tt_set(position, depth, beta, ENTRY_TYPE_BETA, best_move_packed);
 
                 if (bb_is_empty(move.captures)) {
@@ -354,8 +356,13 @@ int alpha_beta(Position *position, int depth, int alpha, int beta) {
         }
     }
 
-    PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);
-    tt_set(position, depth, alpha, tt_entry_type, best_move_packed);
+    if (best_move_valid) {
+        PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);
+        tt_set(position, depth, alpha, tt_entry_type, best_move_packed);
+    } else {
+        tt_set(position, depth, alpha, tt_entry_type, NULL_PACKED_MOVE);
+    }
+
 
     return alpha;
 }
