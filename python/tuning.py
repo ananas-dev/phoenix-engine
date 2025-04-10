@@ -25,18 +25,26 @@ def evaluate_matchup(args):
     manager = TextGameManager(agent_2, agent_1, display=False)
     result_rev = manager.play()
 
-    fitness_1 = result[0] * result[2] + result_rev[0] * result_rev[2]
-    fitness_2 = result[1] * result[2] + result_rev[1] * result_rev[2]
+    def compute_reward(score, turns):
+        if score == 1:     # Win
+            return 1 + (1.0 / turns)
+        elif score == 0.0: # Draw
+            return 0
+        elif score == -1:
+            return -1
+
+    fitness_1 = compute_reward(result[0], result[2]) + compute_reward(result_rev[1], result_rev[2])
+    fitness_2 = compute_reward(result[1], result[2]) + compute_reward(result_rev[0], result_rev[2])
 
     del agent_1
     del agent_2
 
-    return fitness_1, fitness_2
+    return i, j, fitness_1, fitness_2
 
 # ---- GA Setup ----
 NUM_WEIGHTS = 2
 POP_SIZE = 20
-NUM_GENERATIONS = 30
+NUM_GENERATIONS = 1
 TOURNAMENT_SIZE = 3
 MUTATION_RATE = 0.2
 MUTATION_SIGMA = 0.1
@@ -74,7 +82,7 @@ toolbox.register("mate", tools.cxBlend, alpha=0.5)
 toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=MUTATION_SIGMA, indpb=MUTATION_RATE)
 toolbox.register("select", tools.selTournament, tournsize=TOURNAMENT_SIZE)
 
-pool = multiprocessing.Pool(processes=10)
+pool = multiprocessing.Pool(processes=15)
 toolbox.register("map", pool.map)
 
 # ---- Main loop ----
@@ -104,8 +112,13 @@ def run():
 
         pop[:] = offspring
 
+        best = tools.selBest(pop, 1)[0]
+        print("Best individual:", np.round(np.array(best) * 100))
+
+
     best = tools.selBest(pop, 1)[0]
-    print("Best individual:", best)
+    print("Best individual:", np.round(np.array(best) * 100))
+    np.savetxt("best.txt", np.round(np.array(best) * 100))
     print("Fitness:", best.fitness.values[0])
 
 if __name__ == "__main__":
