@@ -240,10 +240,10 @@ class FenixState:
         Returns:
             bool: True if the game is over, False otherwise.
         """
-        # if self.history_boring_turn_hash.count(self._hash()) >= 3:
-        #     return True
-        # if self.boring_turn >= 50:
-        #     return True
+        if self.history_boring_turn_hash.count(self._hash()) >= 3:
+            return True
+        if self.boring_turn >= 50:
+            return True
         if self.turn <= 10 and len(self.actions()) == 0:
             return True
         if self.turn > 10 and not self._has_king(-self.current_player):

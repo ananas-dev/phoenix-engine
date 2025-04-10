@@ -40,6 +40,14 @@ typedef struct {
 } Entry;
 
 typedef struct {
+    int king_material;
+    int general_material;
+} EvalWeights;
+
+typedef struct {
+    // Eval
+    EvalWeights weights;
+
     // Position state
     Zobrists zobrists;
 

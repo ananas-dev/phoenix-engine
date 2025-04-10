@@ -62,12 +62,12 @@ class TextGameManager:
             if self.display:
                 print(f"Player 1 score: {state.utility(1)}")
                 print(f"Player -1 score: {state.utility(-1)}")
-            return state.utility(1), state.utility(-1)
+            return state.utility(1), state.utility(-1), state.turn
         elif self.remaining_time_1 < 0:
             if self.display:
                 print(f"Player 1 ran out of time.")
-            return -1, 1
+            return -1, 1, state.turn
         elif self.remaining_time_2 < 0:
             if self.display:
                 print(f"Player -1 ran out of time.")
-            return 1, -1
+            return 1, -1, state.turn

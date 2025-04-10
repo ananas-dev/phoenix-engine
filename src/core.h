@@ -56,6 +56,7 @@ typedef enum {
     PIECE_GENERAL,
     PIECE_KING,
     NUM_PIECE,
+    INVALID_PIECE,
 } Piece;
 
 static inline int sq_file(Square sq) {

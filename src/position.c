@@ -237,7 +237,7 @@ void position_print(Position *pos) {
         for (int file = 0; file <= 7; file++) {
             Bitboard square_mask = bb_from_sq(sq_get(file, rank));
 
-            Piece current_piece = -1;
+            Piece current_piece = INVALID_PIECE;
             Color current_color = -1;
 
             for (Color color = COLOR_WHITE; color <= COLOR_BLACK; color++) {
@@ -251,7 +251,7 @@ void position_print(Position *pos) {
             }
         end:
 
-            if (current_piece == -1) {
+            if (current_piece == INVALID_PIECE) {
                 printf("|   ");
                 continue;
             }

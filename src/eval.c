@@ -38,6 +38,11 @@ const int center_reward[NUM_SQUARE] = {
 };
 
 void eval_init(State *state) {
+    state->weights = (EvalWeights){
+        .king_material = 10000,
+        .general_material = 900,
+    };
+
     for (Square i = SQ_A1; i <= SQ_H7; i++) {
         for (Square j = SQ_A1; j <= SQ_H7; j++) {
             state->distance[i][j] = 13 - (abs(sq_file(i) - sq_file(j)) + abs(sq_rank(i) - sq_rank(j)));
@@ -63,8 +68,6 @@ static inline int mobility(State *state, Position *position, Color color, Bitboa
 
     return 8 * bb_popcnt(general_mobility) + 1 * bb_popcnt(king_mobility);
 }
-
-
 
 int eval(State *state, Position *position) {
     int turn = position->side_to_move == COLOR_WHITE ? 1 : -1;
@@ -98,8 +101,8 @@ int eval(State *state, Position *position) {
 
     // Don't care about material in setup phase
     if (position->ply >= 10) {
-        material_score = 10000 * (num_white_king - num_black_king)
-                         + 900 * (num_white_general - num_black_general)
+        material_score = state->weights.king_material * (num_white_king - num_black_king)
+                         + state->weights.general_material * (num_white_general - num_black_general)
                          + 100 * (num_white_solider - num_black_solider);
     }
 
