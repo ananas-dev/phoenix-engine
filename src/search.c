@@ -121,6 +121,11 @@ Move search(State *state, Position *position, double max_time_seconds) {
             break;
         }
 
+        // Only search on full turns during the setup phase
+        if (position->ply + depth < 10 && depth % 2 == 1 - (int)position->side_to_move) {
+            continue;
+        }
+
         state->follow_pv = true;
 
         int score = alpha_beta(state, position, depth, alpha, beta);
@@ -244,6 +249,11 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     }
 
     if (depth == 0) {
+        // Only search at even depth during the setup
+        if (position->ply < 10) {
+            return eval(state, position);
+        }
+
         return quiesce(state, position, alpha, beta);
     }
 
