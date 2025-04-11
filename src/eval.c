@@ -180,7 +180,7 @@ int eval(State *state, Position *position) {
         Square from = bb_it_next(&w_general_it);
         Bitboard attacks = general_attacks(state, from, all_pieces);
         w_controlled_squares |= attacks;
-        general_mobility += bb_popcnt(attacks & ~white_pieces);
+        general_mobility += bb_popcnt(attacks & ~all_pieces);
 
         king_threats += bb_popcnt(attacks & position->pieces[COLOR_BLACK][PIECE_KING]);
 
@@ -192,7 +192,7 @@ int eval(State *state, Position *position) {
         Square from = bb_it_next(&b_general_it);
         Bitboard attacks = general_attacks(state, from, all_pieces);
         b_controlled_squares |= attacks;
-        general_mobility -= bb_popcnt(attacks & ~black_pieces);
+        general_mobility -= bb_popcnt(attacks & ~all_pieces);
 
         king_threats -= bb_popcnt(attacks & position->pieces[COLOR_WHITE][PIECE_KING]);
 
