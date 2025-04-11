@@ -123,19 +123,21 @@ Move search(State *state, Position *position, double max_time_seconds) {
 
         int score = alpha_beta(state, position, depth, alpha, beta);
 
-        // if (state->time_over) {
-        //     printf("Depth=%d, Score=/\n", depth);
-        // } else {
-        //     printf("Depth=%d, Score=%.2f\n", depth, (float)score/100.0f);
-        // }
-        //
-        // for (int i = 0; i < state->pv_table[0].size; i++) {
-        //     move_print(state->pv_table[0].moves[i]);
-        //     printf(" ");
-        // }
-        //
-        // printf("\n");
-        //
+        if (state->debug) {
+            if (state->time_over) {
+                printf("Depth=%d, Score=/\n", depth);
+            } else {
+                printf("Depth=%d, Score=%.2f\n", depth, (float)score/100.0f);
+            }
+
+            for (int i = 0; i < state->pv_table[0].size; i++) {
+                move_print(state->pv_table[0].moves[i]);
+                printf(" ");
+            }
+
+            printf("\n");
+        }
+
         // Return early if mate is found
         if (score >= INF - MAX_PLY) {
             return state->pv_table[0].moves[0];

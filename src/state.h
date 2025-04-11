@@ -74,6 +74,8 @@ typedef struct {
 } EvalWeights;
 
 typedef struct {
+    bool debug;
+
     // Eval
     EvalWeights weights;
 

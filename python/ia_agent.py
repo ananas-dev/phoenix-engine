@@ -122,15 +122,16 @@ class State(ctypes.Structure):
 StatePtr = ctypes.POINTER(State)
 
 class IAAgent(Agent):
-    def __init__(self, player, path):
+    def __init__(self, player, path, debug=False):
         super().__init__(player)
         self.lib = ctypes.CDLL(path)
         self.lib.act.argtypes = [StatePtr, ctypes.c_char_p, ctypes.c_double]
         self.lib.act.restype = Move
+        self.lib.init.argtypes = [ctypes.c_bool]
         self.lib.init.restype = StatePtr
         self.lib.set_weights.argtypes = [StatePtr, EvalWeights]
         self.lib.destroy.argtypes = [StatePtr]
-        self.state = self.lib.init()
+        self.state = self.lib.init(debug)
 
     def act(self, state, remaining_time):
         fen = state_to_fen(state)

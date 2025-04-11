@@ -11,8 +11,9 @@
 #include "search.h"
 #include "tt.h"
 
-State* init(void) {
+State* init(bool debug) {
     State* state = malloc(sizeof(State));
+    state->debug = debug;
     movegen_init(state);
     position_init(state);
     eval_init(state);
@@ -31,8 +32,10 @@ Move act(State* state, const char *position, double time_remaining) {
     (void) time_remaining;
     Position pos = position_from_fen(position);
 
-    // position_print(&pos);
-    //
+    if (state->debug) {
+        position_print(&pos);
+    }
+
     double allocated_time = 0.1;
 
     // Basic time management

@@ -36,8 +36,6 @@ void square_structure_init(State *state) {
             square_structure |= bb_from_sq(sq_get(file+1, rank+1));
             square_structure |= bb_from_sq(sq_get(file, rank+1));
 
-            bb_print(square_structure);
-
             state->square_structure_table[file][rank] = square_structure;
         }
     }
