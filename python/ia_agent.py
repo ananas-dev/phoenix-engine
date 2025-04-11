@@ -79,17 +79,47 @@ class Move(ctypes.Structure):
         ("src", ctypes.c_uint8),
         ("dst", ctypes.c_uint8),
     ]
+class EvalWeights(ctypes.Structure):
+    _fields_ = [
+        # Opening phase weights
+        ("op_general_material", ctypes.c_int),
+        ("op_soldier_mobility", ctypes.c_int),
+        ("op_soldier_center", ctypes.c_int),
+        ("op_soldier_king_dist", ctypes.c_int),
+        ("op_general_mobility", ctypes.c_int),
+        ("op_king_mobility", ctypes.c_int),
+        ("op_king_shelter", ctypes.c_int),
+        ("op_king_center", ctypes.c_int),
+        ("op_king_threats", ctypes.c_int),
+        ("op_ss_pair", ctypes.c_int),
+        ("op_sg_pair", ctypes.c_int),
+        ("op_square_structures", ctypes.c_int),
+        ("op_edge_pieces", ctypes.c_int),
+        ("op_control", ctypes.c_int),
+
+        # Endgame phase weights
+        ("eg_soldier_material", ctypes.c_int),
+        ("eg_general_material", ctypes.c_int),
+        ("eg_soldier_mobility", ctypes.c_int),
+        ("eg_soldier_center", ctypes.c_int),
+        ("eg_soldier_king_dist", ctypes.c_int),
+        ("eg_general_mobility", ctypes.c_int),
+        ("eg_king_mobility", ctypes.c_int),
+        ("eg_king_shelter", ctypes.c_int),
+        ("eg_king_center", ctypes.c_int),
+        ("eg_king_threats", ctypes.c_int),
+        ("eg_king_chase", ctypes.c_int),
+        ("eg_ss_pair", ctypes.c_int),
+        ("eg_sg_pair", ctypes.c_int),
+        ("eg_square_structures", ctypes.c_int),
+        ("eg_edge_pieces", ctypes.c_int),
+        ("eg_control", ctypes.c_int),
+    ]
 
 class State(ctypes.Structure):
     pass
 
 StatePtr = ctypes.POINTER(State)
-
-class EvalWeights(ctypes.Structure):
-    _fields_ = [
-        ("general_material", ctypes.c_int),
-        ("king_material", ctypes.c_int),
-    ]
 
 class IAAgent(Agent):
     def __init__(self, player, path):

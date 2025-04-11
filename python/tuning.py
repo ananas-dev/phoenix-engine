@@ -42,9 +42,9 @@ def evaluate_matchup(args):
     return i, j, fitness_1, fitness_2
 
 # ---- GA Setup ----
-NUM_WEIGHTS = 2
+NUM_WEIGHTS = 30
 POP_SIZE = 20
-NUM_GENERATIONS = 1
+NUM_GENERATIONS = 5000
 TOURNAMENT_SIZE = 3
 MUTATION_RATE = 0.2
 MUTATION_SIGMA = 0.1

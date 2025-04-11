@@ -242,7 +242,7 @@ int eval(State *state, Position *position) {
     int king_material = 0;
 
     // Only take material into account when the setup is over
-    if (position->ply < 10) {
+    if (position->ply >= 10) {
         soldier_material = num_white_soldier - num_black_soldier;
         general_material = num_white_general - num_black_general;
         king_material = num_white_king - num_black_king;
@@ -264,6 +264,7 @@ int eval(State *state, Position *position) {
         king_threats * w.op_king_threats +
         ss_pairs * w.op_ss_pair +
         sg_pairs * w.op_sg_pair +
+        square_structures * w.op_square_structures +
         edge_pieces * w.op_edge_pieces +
         control * w.op_control
     );
@@ -287,6 +288,7 @@ int eval(State *state, Position *position) {
         king_chase * w.eg_king_chase +
         ss_pairs * w.eg_ss_pair +
         sg_pairs * w.eg_sg_pair +
+        square_structures * w.eg_square_structures +
         edge_pieces * w.eg_edge_pieces +
         control * w.eg_control
     );
