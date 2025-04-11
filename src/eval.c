@@ -9,13 +9,13 @@
 #include "movegen.h"
 
 const int center_table[NUM_SQUARE] = {
-    0, 1, 2, 2, 2, 2, 1, 0,
+    0, 1, 1, 2, 2, 1, 1, 0,
     1, 2, 3, 3, 3, 3, 2, 1,
-    2, 3, 4, 4, 4, 4, 3, 2,
     2, 3, 4, 5, 5, 4, 3, 2,
-    2, 3, 4, 4, 4, 4, 3, 2,
+    2, 3, 5, 6, 6, 5, 3, 2,
+    2, 3, 4, 5, 5, 4, 3, 2,
     1, 2, 3, 3, 3, 3, 2, 1,
-    0, 1, 2, 2, 2, 2, 1, 0,
+    0, 1, 1, 2, 2, 1, 1, 0,
 };
 
 static const int edge_table[NUM_SQUARE] = {
@@ -28,14 +28,15 @@ static const int edge_table[NUM_SQUARE] = {
     2, 1, 1, 1, 1, 1, 1, 2,
 };
 
+
 void square_structure_init(State *state) {
     for (File file = FILE_A; file <= FILE_G; file++) {
         for (Rank rank = RANK_1; rank <= RANK_6; rank++) {
             Bitboard square_structure = BB_EMPTY;
             square_structure |= bb_from_sq(sq_get(file, rank));
-            square_structure |= bb_from_sq(sq_get(file+1, rank));
-            square_structure |= bb_from_sq(sq_get(file+1, rank+1));
-            square_structure |= bb_from_sq(sq_get(file, rank+1));
+            square_structure |= bb_from_sq(sq_get(file + 1, rank));
+            square_structure |= bb_from_sq(sq_get(file + 1, rank + 1));
+            square_structure |= bb_from_sq(sq_get(file, rank + 1));
 
             state->square_structure_table[file][rank] = square_structure;
         }
@@ -136,8 +137,8 @@ int eval(State *state, Position *position) {
         Bitboard attacks = soldier_attacks(state, from);
         w_controlled_squares |= attacks;
 
-        ss_pairs += bb_popcnt(soldier_attacks(state, from) & position->pieces[COLOR_WHITE][PIECE_SOLDIER]);
-        sg_pairs += bb_popcnt(soldier_attacks(state, from) & position->pieces[COLOR_WHITE][PIECE_GENERAL]);
+        ss_pairs += bb_popcnt(attacks & position->pieces[COLOR_WHITE][PIECE_SOLDIER]);
+        sg_pairs += bb_popcnt(attacks & position->pieces[COLOR_WHITE][PIECE_GENERAL]);
         soldier_mobility += bb_popcnt(attacks & ~all_pieces);
 
         edge_pieces += edge_table[from];
@@ -156,8 +157,8 @@ int eval(State *state, Position *position) {
         Bitboard attacks = soldier_attacks(state, from);
         b_controlled_squares |= attacks;
 
-        ss_pairs -= bb_popcnt(soldier_attacks(state, from) & position->pieces[COLOR_BLACK][PIECE_SOLDIER]);
-        sg_pairs -= bb_popcnt(soldier_attacks(state, from) & position->pieces[COLOR_BLACK][PIECE_GENERAL]);
+        ss_pairs -= bb_popcnt(attacks & position->pieces[COLOR_BLACK][PIECE_SOLDIER]);
+        sg_pairs -= bb_popcnt(attacks & position->pieces[COLOR_BLACK][PIECE_GENERAL]);
         soldier_mobility -= bb_popcnt(attacks & ~all_pieces);
 
         edge_pieces -= edge_table[from];
@@ -195,7 +196,7 @@ int eval(State *state, Position *position) {
 
         king_threats -= bb_popcnt(attacks & position->pieces[COLOR_WHITE][PIECE_KING]);
 
-        edge_pieces += edge_table[from];
+        edge_pieces -= edge_table[from];
     }
 
     // KING ITER
@@ -232,7 +233,7 @@ int eval(State *state, Position *position) {
         king_shelter -= bb_popcnt(attacks & black_pieces);
 
         edge_pieces -= edge_table[black_king_pos];
-        soldier_center -= center_table[black_king_pos];
+        king_center -= center_table[black_king_pos];
     }
 
     int control = bb_popcnt(w_controlled_squares) - bb_popcnt(b_controlled_squares);
