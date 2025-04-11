@@ -40,13 +40,44 @@ typedef struct {
 } Entry;
 
 typedef struct {
-    int king_material;
-    int general_material;
+    int op_general_material;
+    int op_soldier_mobility;
+    int op_soldier_center;
+    int op_soldier_king_dist;
+    int op_general_mobility;
+    int op_king_mobility;
+    int op_king_shelter;
+    int op_king_center;
+    int op_king_threats;
+    int op_ss_pair;
+    int op_sg_pair;
+    int op_square_structures;
+    int op_edge_pieces;
+    int op_control;
+
+    int eg_soldier_material;
+    int eg_general_material;
+    int eg_soldier_mobility;
+    int eg_soldier_center;
+    int eg_soldier_king_dist;
+    int eg_general_mobility;
+    int eg_king_mobility;
+    int eg_king_shelter;
+    int eg_king_center;
+    int eg_king_threats;
+    int eg_king_chase;
+    int eg_ss_pair;
+    int eg_sg_pair;
+    int eg_square_structures;
+    int eg_edge_pieces;
+    int eg_control;
 } EvalWeights;
 
 typedef struct {
     // Eval
     EvalWeights weights;
+
+    Bitboard square_structure_table[NUM_FILE - 1][NUM_RANK - 1];
 
     // Position state
     Zobrists zobrists;

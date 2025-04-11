@@ -23,7 +23,7 @@ State* init(void) {
 
 void set_weights(State* state, const EvalWeights weights) {
     // Reset the cache
-    memset(state->tt, 0, sizeof(Entry) * state->tt_size);
+    // memset(state->tt, 0, sizeof(Entry) * state->tt_size);
     state->weights = weights;
 }
 

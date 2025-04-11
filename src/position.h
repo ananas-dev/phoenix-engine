@@ -30,6 +30,11 @@ static inline Bitboard pieces_by_color(Position *pos, Color color) {
     return pos->pieces[color][PIECE_SOLDIER] | pos->pieces[color][PIECE_GENERAL] | pos->pieces[color][PIECE_KING];
 }
 
+static inline int count_pieces(Position *pos, Piece piece_type) {
+    return bb_popcnt(pos->pieces[COLOR_WHITE][piece_type]) + bb_popcnt(pos->pieces[COLOR_BLACK][piece_type]);
+}
+
 Position make_move(State *state, Position *pos, Move move);
 Position position_from_fen(const char *fen_str);
 void position_print(Position *pos);
+
