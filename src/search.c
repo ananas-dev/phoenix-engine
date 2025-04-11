@@ -114,6 +114,8 @@ Move search(State *state, Position *position, double max_time_seconds) {
     int alpha = -INF;
     int beta = INF;
 
+    Move best_move = {0};
+
     for (int depth = 1; depth <= 100; depth++) {
         if (state->time_over) {
             break;
@@ -138,14 +140,17 @@ Move search(State *state, Position *position, double max_time_seconds) {
             printf("\n");
         }
 
-        // Return early if mate is found
-        if (score >= INF - MAX_PLY) {
-            return state->pv_table[0].moves[0];
+        if (state->pv_table[0].size > 0) {
+            best_move = state->pv_table[0].moves[0];
+        }
+
+        if (score >= INF - MAX_PLY || score <= -INF + MAX_PLY) {
+            break; // found a mate in search
         }
 
     }
 
-    return state->pv_table[0].moves[0];
+    return best_move;
 }
 
 int quiesce(State *state, Position *position, int alpha, int beta) {

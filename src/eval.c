@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "bitboard.h"
 #include "movegen.h"
@@ -62,6 +63,7 @@ int count_square_structures(State *state, Position *position) {
 }
 
 void eval_init(State *state) {
+    memset(&state->weights, 0, sizeof(EvalWeights));
     // state->weights = (EvalWeights){
     //     .general_phase = 4,
     //     .soldier_phase = 1,
@@ -250,7 +252,7 @@ int eval(State *state, Position *position) {
 
     int opening_score = (
         soldier_material * 100 + // reference unit
-        king_material * 100000 + // assert there is a king or continue to quiesce
+        king_material * 10000 + // assert there is a king or continue to quiesce
         general_material * w.op_general_material +
         soldier_mobility * w.op_soldier_mobility +
         soldier_center * w.op_soldier_center +
@@ -272,7 +274,7 @@ int eval(State *state, Position *position) {
     }
 
     int endgame_score = (
-        king_material * 100000 + // assert there is a king or continue to quiesce
+        king_material * 10000 + // assert there is a king or continue to quiesce
         soldier_material * w.eg_soldier_material + // reference unit
         general_material * w.eg_general_material +
         soldier_mobility * w.eg_soldier_mobility +
