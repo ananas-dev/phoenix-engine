@@ -27,6 +27,8 @@ add_library(clippy SHARED
         src/eval.c
 )
 
+target_link_libraries(clippy m)
+
 add_executable(perft_test test/perft.c)
 target_link_libraries(perft_test unity clippy)
 

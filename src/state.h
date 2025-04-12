@@ -44,45 +44,49 @@ typedef struct {
     uint8_t depth;
 } Entry;
 
-typedef struct {
-    int op_general_material;
-    int op_soldier_mobility;
-    int op_soldier_center;
-    int op_soldier_king_dist;
-    int op_general_mobility;
-    int op_king_mobility;
-    int op_king_shelter;
-    int op_king_center;
-    int op_king_threats;
-    int op_ss_pair;
-    int op_sg_pair;
-    int op_square_structures;
-    int op_edge_pieces;
-    int op_control;
+typedef enum {
+    // tables
+    W_OP_SOLDIER_PIECE_TABLE = 0,
+    W_OP_GENERAL_PIECE_TABLE = NUM_SQUARE,
+    W_OP_KING_PIECE_TABLE = NUM_SQUARE * 2,
+    W_EG_SOLDIER_PIECE_TABLE = NUM_SQUARE * 3,
+    W_EG_GENERAL_PIECE_TABLE = NUM_SQUARE * 4,
+    W_EG_KING_PIECE_TABLE = NUM_SQUARE * 5,
 
-    int eg_soldier_material;
-    int eg_general_material;
-    int eg_soldier_mobility;
-    int eg_soldier_center;
-    int eg_soldier_king_dist;
-    int eg_general_mobility;
-    int eg_king_mobility;
-    int eg_king_shelter;
-    int eg_king_center;
-    int eg_king_threats;
-    int eg_king_chase;
-    int eg_ss_pair;
-    int eg_sg_pair;
-    int eg_square_structures;
-    int eg_edge_pieces;
-    int eg_control;
-} EvalWeights;
+    W_OP_GENERAL_MATERIAL,
+    W_OP_SOLDIER_MOBILITY,
+    W_OP_SOLDIER_KING_DIST,
+    W_OP_GENERAL_MOBILITY,
+    W_OP_KING_MOBILITY,
+    W_OP_KING_SHELTER,
+    W_OP_KING_THREATS,
+    W_OP_SS_PAIR,
+    W_OP_SG_PAIR,
+    W_OP_SQUARE_STRUCTURES,
+    W_OP_CONTROL,
+
+    W_EG_SOLDIER_MATERIAL,
+    W_EG_GENERAL_MATERIAL,
+    W_EG_SOLDIER_MOBILITY,
+    W_EG_SOLDIER_KING_DIST,
+    W_EG_GENERAL_MOBILITY,
+    W_EG_KING_MOBILITY,
+    W_EG_KING_SHELTER,
+    W_EG_KING_THREATS,
+    W_EG_KING_CHASE,
+    W_EG_SS_PAIR,
+    W_EG_SG_PAIR,
+    W_EG_SQUARE_STRUCTURES,
+    W_EG_CONTROL,
+
+    W_COUNT  // Always a good idea to have a count for loops etc.
+} Weight;
 
 typedef struct {
     bool debug;
 
     // Eval
-    EvalWeights weights;
+    int weights[W_COUNT];
 
     Bitboard square_structure_table[NUM_FILE - 1][NUM_RANK - 1];
 

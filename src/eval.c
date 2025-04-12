@@ -8,27 +8,6 @@
 #include "bitboard.h"
 #include "movegen.h"
 
-const int center_table[NUM_SQUARE] = {
-    0, 1, 1, 2, 2, 1, 1, 0,
-    1, 2, 3, 3, 3, 3, 2, 1,
-    2, 3, 4, 5, 5, 4, 3, 2,
-    2, 3, 5, 6, 6, 5, 3, 2,
-    2, 3, 4, 5, 5, 4, 3, 2,
-    1, 2, 3, 3, 3, 3, 2, 1,
-    0, 1, 1, 2, 2, 1, 1, 0,
-};
-
-static const int edge_table[NUM_SQUARE] = {
-    2, 1, 1, 1, 1, 1, 1, 2,
-    1, 0, 0, 0, 0, 0, 0, 1,
-    1, 0, 0, 0, 0, 0, 0, 1,
-    1, 0, 0, 0, 0, 0, 0, 1,
-    1, 0, 0, 0, 0, 0, 0, 1,
-    1, 0, 0, 0, 0, 0, 0, 1,
-    2, 1, 1, 1, 1, 1, 1, 2,
-};
-
-
 void square_structure_init(State *state) {
     for (File file = FILE_A; file <= FILE_G; file++) {
         for (Rank rank = RANK_1; rank <= RANK_6; rank++) {
@@ -64,41 +43,7 @@ int count_square_structures(State *state, Position *position) {
 }
 
 void eval_init(State *state) {
-    state->weights = (EvalWeights){
-        // Opening phase weights
-        .op_general_material = 188,
-        .op_soldier_mobility = 7,
-        .op_soldier_center = -31,
-        .op_soldier_king_dist = 98,
-        .op_general_mobility = 67,
-        .op_king_mobility = -36,
-        .op_king_shelter = -131,
-        .op_king_center = -20,
-        .op_king_threats = 61,
-        .op_ss_pair = -81,
-        .op_sg_pair = 83,
-        .op_square_structures = -60,
-        .op_edge_pieces = 79,
-        .op_control = -22,
-
-        // Endgame phase weights
-        .eg_soldier_material = 83,
-        .eg_general_material = 43,
-        .eg_soldier_mobility = -19,
-        .eg_soldier_center = 26,
-        .eg_soldier_king_dist = 31,
-        .eg_general_mobility = 59,
-        .eg_king_mobility = -77,
-        .eg_king_shelter = -48,
-        .eg_king_center = -31,
-        .eg_king_threats = 4,
-        .eg_king_chase = 130,
-        .eg_ss_pair = 87,
-        .eg_sg_pair = -19,
-        .eg_square_structures = 1,
-        .eg_edge_pieces = 54,
-        .eg_control = 98
-    };
+    memset(state->weights, 0, sizeof(int) * W_COUNT);
 
     for (Square i = SQ_A1; i <= SQ_H7; i++) {
         for (Square j = SQ_A1; j <= SQ_H7; j++) {
@@ -111,6 +56,7 @@ void eval_init(State *state) {
 
 int eval(State *state, Position *position) {
     int turn = position->side_to_move == COLOR_WHITE ? 1 : -1;
+    int *w = state->weights;
 
     int num_white_soldier = bb_popcnt(position->pieces[COLOR_WHITE][PIECE_SOLDIER]);
     int num_white_general = bb_popcnt(position->pieces[COLOR_WHITE][PIECE_GENERAL]);
@@ -139,15 +85,19 @@ int eval(State *state, Position *position) {
 
     int square_structures = count_square_structures(state, position);
 
+    int op_soldier_position = 0;
+    int op_general_position = 0;
+    int op_king_position = 0;
+    int eg_soldier_position = 0;
+    int eg_general_position = 0;
+    int eg_king_position = 0;
+
     int ss_pairs = 0;
     int sg_pairs = 0;
-
-    int edge_pieces = 0;
 
     int king_threats = 0;
 
     int soldier_mobility = 0;
-    int soldier_center = 0;
     int soldier_king_dist = 0;
 
     Bitboard w_controlled_squares = BB_EMPTY;
@@ -165,14 +115,14 @@ int eval(State *state, Position *position) {
         sg_pairs += bb_popcnt(attacks & position->pieces[COLOR_WHITE][PIECE_GENERAL]);
         soldier_mobility += bb_popcnt(attacks & ~all_pieces);
 
-        edge_pieces += edge_table[from];
-        soldier_center += center_table[from];
-
         if (num_black_king > 0) {
             soldier_king_dist += state->distance[from][black_king_pos];
         }
 
         king_threats += bb_popcnt(attacks & position->pieces[COLOR_BLACK][PIECE_KING]);
+
+        op_soldier_position += w[W_OP_SOLDIER_PIECE_TABLE + from];
+        eg_soldier_position += w[W_EG_SOLDIER_PIECE_TABLE + from];
     }
 
     Bitboard b_soldier_it = position->pieces[COLOR_BLACK][PIECE_SOLDIER] & BB_USED;
@@ -185,14 +135,14 @@ int eval(State *state, Position *position) {
         sg_pairs -= bb_popcnt(attacks & position->pieces[COLOR_BLACK][PIECE_GENERAL]);
         soldier_mobility -= bb_popcnt(attacks & ~all_pieces);
 
-        edge_pieces -= edge_table[from];
-        soldier_center -= center_table[from];
-
         if (num_white_king > 0) {
             soldier_king_dist -= state->distance[from][white_king_pos];
         }
 
         king_threats -= bb_popcnt(attacks & position->pieces[COLOR_WHITE][PIECE_KING]);
+
+        op_soldier_position -= w[W_OP_SOLDIER_PIECE_TABLE + (SQ_H7 - from)];
+        eg_soldier_position -= w[W_EG_SOLDIER_PIECE_TABLE + (SQ_H7 - from)];
     }
 
     // GENERAL ITER
@@ -208,7 +158,8 @@ int eval(State *state, Position *position) {
 
         king_threats += bb_popcnt(attacks & position->pieces[COLOR_BLACK][PIECE_KING]);
 
-        edge_pieces += edge_table[from];
+        op_general_position += w[W_OP_GENERAL_PIECE_TABLE + from];
+        eg_general_position += w[W_EG_GENERAL_PIECE_TABLE + from];
     }
 
     Bitboard b_general_it = position->pieces[COLOR_BLACK][PIECE_GENERAL] & BB_USED;
@@ -220,7 +171,8 @@ int eval(State *state, Position *position) {
 
         king_threats -= bb_popcnt(attacks & position->pieces[COLOR_WHITE][PIECE_KING]);
 
-        edge_pieces -= edge_table[from];
+        op_general_position -= w[W_OP_GENERAL_PIECE_TABLE + (SQ_H7 - from)];
+        eg_general_position -= w[W_EG_GENERAL_PIECE_TABLE + (SQ_H7 - from)];
     }
 
     // KING ITER
@@ -228,7 +180,6 @@ int eval(State *state, Position *position) {
     int king_mobility = 0;
     int king_shelter = 0;
     int king_chase = 0;
-    int king_center = 0;
 
     if (num_white_king > 0 && num_black_king > 0) {
         int kings_distance = state->distance[white_king_pos][black_king_pos];
@@ -246,8 +197,8 @@ int eval(State *state, Position *position) {
         king_mobility += bb_popcnt(attacks & ~all_pieces);
         king_shelter += bb_popcnt(attacks & white_pieces);
 
-        edge_pieces += edge_table[white_king_pos];
-        king_center += center_table[white_king_pos];
+        op_king_position += w[W_OP_GENERAL_PIECE_TABLE + white_king_pos];
+        eg_king_position += w[W_EG_GENERAL_PIECE_TABLE + white_king_pos];
     }
 
     if (num_black_king > 0) {
@@ -256,8 +207,8 @@ int eval(State *state, Position *position) {
         king_mobility -= bb_popcnt(attacks & ~all_pieces);
         king_shelter -= bb_popcnt(attacks & black_pieces);
 
-        edge_pieces -= edge_table[black_king_pos];
-        king_center -= center_table[black_king_pos];
+        op_king_position -= w[W_OP_GENERAL_PIECE_TABLE + (SQ_H7 - black_king_pos)];
+        eg_king_position -= w[W_EG_GENERAL_PIECE_TABLE + (SQ_H7 - black_king_pos)];
     }
 
     int control = bb_popcnt(w_controlled_squares) - bb_popcnt(b_controlled_squares);
@@ -273,25 +224,23 @@ int eval(State *state, Position *position) {
         king_material = num_white_king - num_black_king;
     }
 
-    EvalWeights w = state->weights;
-
     int opening_score = (
-        soldier_material * 100 + // reference unit
         king_material * 10000 + // assert there is a king or continue to quiesce
-        general_material * w.op_general_material +
-        soldier_mobility * w.op_soldier_mobility +
-        soldier_center * w.op_soldier_center +
-        soldier_king_dist * w.op_soldier_king_dist +
-        general_mobility * w.op_general_mobility +
-        king_mobility * w.op_king_mobility +
-        king_shelter * w.op_king_shelter +
-        king_center * w.op_king_center +
-        king_threats * w.op_king_threats +
-        ss_pairs * w.op_ss_pair +
-        sg_pairs * w.op_sg_pair +
-        square_structures * w.op_square_structures +
-        edge_pieces * w.op_edge_pieces +
-        control * w.op_control
+        soldier_material * 100 +
+        general_material * w[W_OP_GENERAL_MATERIAL] +
+        soldier_mobility * w[W_OP_SOLDIER_MOBILITY] +
+        soldier_king_dist * w[W_OP_SOLDIER_KING_DIST] +
+        general_mobility * w[W_OP_GENERAL_MOBILITY] +
+        king_mobility * w[W_OP_KING_MOBILITY] +
+        king_shelter * w[W_OP_KING_SHELTER] +
+        king_threats * w[W_OP_KING_THREATS] +
+        ss_pairs * w[W_OP_SS_PAIR] +
+        sg_pairs * w[W_OP_SG_PAIR] +
+        square_structures * w[W_OP_SQUARE_STRUCTURES] +
+        control * w[W_OP_CONTROL] +
+        op_soldier_position +
+        op_general_position +
+        op_king_position
     );
 
     if (position->ply < 10) {
@@ -300,22 +249,22 @@ int eval(State *state, Position *position) {
 
     int endgame_score = (
         king_material * 10000 + // assert there is a king or continue to quiesce
-        soldier_material * w.eg_soldier_material + // reference unit
-        general_material * w.eg_general_material +
-        soldier_mobility * w.eg_soldier_mobility +
-        soldier_center * w.eg_soldier_center +
-        soldier_king_dist * w.eg_soldier_king_dist +
-        general_mobility * w.eg_general_mobility +
-        king_mobility * w.eg_king_mobility +
-        king_shelter * w.eg_king_shelter +
-        king_center * w.eg_king_center +
-        king_threats * w.eg_king_threats +
-        king_chase * w.eg_king_chase +
-        ss_pairs * w.eg_ss_pair +
-        sg_pairs * w.eg_sg_pair +
-        square_structures * w.eg_square_structures +
-        edge_pieces * w.eg_edge_pieces +
-        control * w.eg_control
+        soldier_material * w[W_EG_SOLDIER_MATERIAL] +
+        general_material * w[W_EG_GENERAL_MATERIAL] +
+        soldier_mobility * w[W_EG_SOLDIER_MOBILITY] +
+        soldier_king_dist * w[W_EG_SOLDIER_KING_DIST] +
+        general_mobility * w[W_EG_GENERAL_MOBILITY] +
+        king_mobility * w[W_EG_KING_MOBILITY] +
+        king_shelter * w[W_EG_KING_SHELTER] +
+        king_threats * w[W_EG_KING_THREATS] +
+        king_chase * w[W_EG_KING_CHASE] +
+        ss_pairs * w[W_EG_SS_PAIR] +
+        sg_pairs * w[W_EG_SG_PAIR] +
+        square_structures * w[W_EG_SQUARE_STRUCTURES] +
+        control * w[W_EG_CONTROL] +
+        eg_soldier_position +
+        eg_general_position +
+        eg_king_position
     );
 
     // PHASE CALCULATION

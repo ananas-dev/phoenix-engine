@@ -82,42 +82,6 @@ class Move(ctypes.Structure):
         ("dst", ctypes.c_uint8),
         ("found_mate", ctypes.c_bool),
     ]
-class EvalWeights(ctypes.Structure):
-    _fields_ = [
-        # Opening phase weights
-        ("op_general_material", ctypes.c_int),
-        ("op_soldier_mobility", ctypes.c_int),
-        ("op_soldier_center", ctypes.c_int),
-        ("op_soldier_king_dist", ctypes.c_int),
-        ("op_general_mobility", ctypes.c_int),
-        ("op_king_mobility", ctypes.c_int),
-        ("op_king_shelter", ctypes.c_int),
-        ("op_king_center", ctypes.c_int),
-        ("op_king_threats", ctypes.c_int),
-        ("op_ss_pair", ctypes.c_int),
-        ("op_sg_pair", ctypes.c_int),
-        ("op_square_structures", ctypes.c_int),
-        ("op_edge_pieces", ctypes.c_int),
-        ("op_control", ctypes.c_int),
-
-        # Endgame phase weights
-        ("eg_soldier_material", ctypes.c_int),
-        ("eg_general_material", ctypes.c_int),
-        ("eg_soldier_mobility", ctypes.c_int),
-        ("eg_soldier_center", ctypes.c_int),
-        ("eg_soldier_king_dist", ctypes.c_int),
-        ("eg_general_mobility", ctypes.c_int),
-        ("eg_king_mobility", ctypes.c_int),
-        ("eg_king_shelter", ctypes.c_int),
-        ("eg_king_center", ctypes.c_int),
-        ("eg_king_threats", ctypes.c_int),
-        ("eg_king_chase", ctypes.c_int),
-        ("eg_ss_pair", ctypes.c_int),
-        ("eg_sg_pair", ctypes.c_int),
-        ("eg_square_structures", ctypes.c_int),
-        ("eg_edge_pieces", ctypes.c_int),
-        ("eg_control", ctypes.c_int),
-    ]
 
 class State(ctypes.Structure):
     pass
@@ -129,16 +93,19 @@ class IAAgent(Agent):
         super().__init__(player)
         self.lib = ctypes.CDLL(path)
         self.lib.act.argtypes = [StatePtr, ctypes.c_char_p, ctypes.c_double]
+        self.lib.evaluation_error.argtypes = [StatePtr, ctypes.c_char_p]
+        self.lib.evaluation_error.restype = ctypes.c_double
         self.lib.act.restype = Move
         self.lib.init.argtypes = [ctypes.c_bool]
         self.lib.init.restype = StatePtr
-        self.lib.set_weights.argtypes = [StatePtr, EvalWeights]
+        self.lib.set_weights.argtypes = [StatePtr, ctypes.POINTER(ctypes.c_int), ctypes.c_int]
         self.lib.destroy.argtypes = [StatePtr]
         self.lib.new_game.argtypes = [StatePtr]
         self.state = self.lib.init(debug)
         self.__found_mate = False
 
     def new_game(self):
+        self.__found_mate = False
         self.lib.new_game(self.state)
 
     def act(self, state, remaining_time):
@@ -176,8 +143,13 @@ class IAAgent(Agent):
     def found_mate(self):
         return self.__found_mate
 
+    def evaluation_error(self, file_name):
+        return self.lib.evaluation_error(self.state, file_name.encode("utf-8"))
+
     def set_weights(self, weights: list[int]):
-        self.lib.set_weights(self.state, EvalWeights(*weights))
+        Weights = ctypes.c_int * len(weights)
+        arr = Weights(*weights)
+        self.lib.set_weights(self.state, arr, len(weights))
 
     def __del__(self):
         self.lib.destroy(self.state)
