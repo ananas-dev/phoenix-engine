@@ -9,21 +9,26 @@
 
 typedef struct {
     Bitboard pieces[NUM_COLOR][NUM_PIECE];
+    uint64_t hash;
     uint16_t ply;
+    uint16_t half_move_clock;
     Color side_to_move;
     bool can_create_general;
     bool can_create_king;
-    uint64_t hash;
 } Position;
 
 void position_init(State *state);
 
-static inline bool position_is_game_over(Position *pos) {
-    if (pos->ply >= 10) {
-        return bb_popcnt(pos->pieces[1 - pos->side_to_move][PIECE_KING] & BB_USED) == 0;
+static inline GameState position_state(Position *pos) {
+    if (pos->half_move_clock >= 50) {
+        return STATE_DRAW;
     }
 
-    return false;
+    if (pos->ply >= 10 && bb_popcnt(pos->pieces[1 - pos->side_to_move][PIECE_KING] & BB_USED) == 0) {
+        return STATE_WIN;
+    }
+
+    return STATE_ONGOING;
 }
 
 static inline Bitboard pieces_by_color(Position *pos, Color color) {

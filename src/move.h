@@ -13,6 +13,13 @@ typedef struct {
     Move moves[128];
 } MoveList;
 
+typedef struct {
+    Bitboard captures;
+    uint8_t from;
+    uint8_t to;
+    bool found_mate;
+} MoveWithMateInfo;
+
 typedef enum {
     FLAG_NULL = 0,
     FLAG_NORMAL = 1,

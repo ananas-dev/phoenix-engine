@@ -25,6 +25,11 @@ typedef struct {
     uint64_t can_create_king;
 } Zobrists;
 
+typedef struct {
+    uint64_t hash[50];
+    int size;
+} HashList;
+
 typedef enum {
     ENTRY_TYPE_EXACT,
     ENTRY_TYPE_ALPHA,
@@ -90,6 +95,8 @@ typedef struct {
 
     Bitboard soldier_attack_table[NUM_SQUARE];
     Bitboard king_attack_table[NUM_SQUARE];
+
+    HashList hash_list;
 
     Entry *tt;
     int tt_size;

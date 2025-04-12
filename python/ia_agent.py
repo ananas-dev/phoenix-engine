@@ -62,6 +62,8 @@ def state_to_fen(state):
     # Add the turn count
     board_fen += f" {state.turn}"
 
+    board_fen += f" {state.boring_turn}"
+
     # Add side to move (w for 1, b for -1)
     board_fen += " w" if state.current_player == 1 else " b"
 
@@ -78,6 +80,7 @@ class Move(ctypes.Structure):
         ("captures", ctypes.c_uint64),
         ("src", ctypes.c_uint8),
         ("dst", ctypes.c_uint8),
+        ("found_mate", ctypes.c_bool),
     ]
 class EvalWeights(ctypes.Structure):
     _fields_ = [
@@ -131,7 +134,12 @@ class IAAgent(Agent):
         self.lib.init.restype = StatePtr
         self.lib.set_weights.argtypes = [StatePtr, EvalWeights]
         self.lib.destroy.argtypes = [StatePtr]
+        self.lib.new_game.argtypes = [StatePtr]
         self.state = self.lib.init(debug)
+        self.__found_mate = False
+
+    def new_game(self):
+        self.lib.new_game(self.state)
 
     def act(self, state, remaining_time):
         fen = state_to_fen(state)
@@ -142,6 +150,8 @@ class IAAgent(Agent):
         src_rank = move.src >> 3
         dst_file = move.dst & 7
         dst_rank = move.dst >> 3
+
+        self.__found_mate = move.found_mate
 
         deleted = set()
         captures_it = move.captures
@@ -154,6 +164,17 @@ class IAAgent(Agent):
 
         action = FenixAction((6 - src_rank, src_file), (6 - dst_rank, dst_file), frozenset(deleted))
         return action
+
+    def act_random(self, state, remaining_time):
+        actions = state.actions()
+        if len(actions) == 0:
+            raise Exception("No action available.")
+        choice = random.choice(actions)
+        return choice
+
+
+    def found_mate(self):
+        return self.__found_mate
 
     def set_weights(self, weights: list[int]):
         self.lib.set_weights(self.state, EvalWeights(*weights))

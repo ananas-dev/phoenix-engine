@@ -64,17 +64,41 @@ int count_square_structures(State *state, Position *position) {
 }
 
 void eval_init(State *state) {
-    memset(&state->weights, 0, sizeof(EvalWeights));
-    // state->weights = (EvalWeights){
-    //     .general_phase = 4,
-    //     .soldier_phase = 1,
-    //     .general_material = 900,
-    //     .king_mobility = 1,
-    //     .general_mobility = 8,
-    //     .soldier_mobility = 0,
-    //     .soldier_center = 5,
-    //     .king_shelter = 10,
-    // };
+    state->weights = (EvalWeights){
+        // Opening phase weights
+        .op_general_material = 188,
+        .op_soldier_mobility = 7,
+        .op_soldier_center = -31,
+        .op_soldier_king_dist = 98,
+        .op_general_mobility = 67,
+        .op_king_mobility = -36,
+        .op_king_shelter = -131,
+        .op_king_center = -20,
+        .op_king_threats = 61,
+        .op_ss_pair = -81,
+        .op_sg_pair = 83,
+        .op_square_structures = -60,
+        .op_edge_pieces = 79,
+        .op_control = -22,
+
+        // Endgame phase weights
+        .eg_soldier_material = 83,
+        .eg_general_material = 43,
+        .eg_soldier_mobility = -19,
+        .eg_soldier_center = 26,
+        .eg_soldier_king_dist = 31,
+        .eg_general_mobility = 59,
+        .eg_king_mobility = -77,
+        .eg_king_shelter = -48,
+        .eg_king_center = -31,
+        .eg_king_threats = 4,
+        .eg_king_chase = 130,
+        .eg_ss_pair = 87,
+        .eg_sg_pair = -19,
+        .eg_square_structures = 1,
+        .eg_edge_pieces = 54,
+        .eg_control = 98
+    };
 
     for (Square i = SQ_A1; i <= SQ_H7; i++) {
         for (Square j = SQ_A1; j <= SQ_H7; j++) {

@@ -96,7 +96,7 @@ void update_clock(State *state) {
 
 int alpha_beta(State *state, Position *position, int depth, int alpha, int beta);
 
-Move search(State *state, Position *position, double max_time_seconds) {
+MoveWithMateInfo search(State *state, Position *position, double max_time_seconds) {
     state->search_ply = 0;
 
     memset(state->pv_table, 0, sizeof(state->pv_table));
@@ -115,6 +115,7 @@ Move search(State *state, Position *position, double max_time_seconds) {
     int beta = INF;
 
     Move best_move = {0};
+    bool found_mate = false;
 
     for (int depth = 1; depth <= 100; depth++) {
         if (state->time_over) {
@@ -150,12 +151,18 @@ Move search(State *state, Position *position, double max_time_seconds) {
         }
 
         if (score >= INF - MAX_PLY || score <= -INF + MAX_PLY) {
+            found_mate = true;
             break; // found a mate in search
         }
 
     }
 
-    return best_move;
+    return (MoveWithMateInfo) {
+        .from = best_move.from,
+        .to = best_move.to,
+        .captures = best_move.captures,
+        .found_mate = found_mate,
+    };
 }
 
 int quiesce(State *state, Position *position, int alpha, int beta) {
@@ -163,8 +170,12 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
         update_clock(state);
     }
 
-    if (position_is_game_over(position)) {
+    GameState game_state = position_state(position);
+    if (game_state == STATE_WIN) {
         return INF - state->search_ply;
+    }
+    if (game_state == STATE_DRAW) {
+        return 0;
     }
 
     int stand_pat = eval(state, position);
@@ -188,10 +199,6 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
         // Check for non capture moves
         if (bb_is_empty(move.captures)) {
             // Skip stack check in setup phase
-            if (position->ply < 10) {
-                continue;
-            }
-
             Bitboard to_mask = bb_from_sq(move.to);
             Bitboard new_general = to_mask & position->pieces[position->side_to_move][PIECE_SOLDIER];
             Bitboard new_king = to_mask & position->pieces[position->side_to_move][PIECE_GENERAL];
@@ -229,8 +236,12 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
 int alpha_beta(State *state, Position *position, int depth, int alpha, int beta) {
     state->pv_table[state->search_ply].size = state->search_ply;
 
-    if (position_is_game_over(position)) {
+    GameState game_state = position_state(position);
+    if (game_state == STATE_WIN) {
         return INF - state->search_ply;
+    }
+    if (game_state == STATE_DRAW) {
+        return 0;
     }
 
     // Update clock from time to time

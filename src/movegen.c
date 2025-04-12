@@ -564,7 +564,7 @@ void legal_moves(State *state, Position *pos, MoveList *move_list) {
 }
 
 uint64_t perft_aux(State *state, Position *position, int depth) {
-    if (depth == 0 || position_is_game_over(position)) {
+    if (depth == 0 || position_state(position)) {
         return 1ULL;
     }
 
@@ -583,7 +583,7 @@ uint64_t perft_aux(State *state, Position *position, int depth) {
 
 
 uint64_t perft(State *state, Position *position, int depth, bool debug) {
-    if (depth == 0 || position_is_game_over(position)) {
+    if (depth == 0 || position_state(position)) {
         return 1ULL;
     }
 

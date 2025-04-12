@@ -59,6 +59,12 @@ typedef enum {
     INVALID_PIECE,
 } Piece;
 
+typedef enum {
+    STATE_ONGOING,
+    STATE_WIN,
+    STATE_DRAW,
+} GameState;
+
 static inline int sq_file(Square sq) {
     return sq & 7;
 }

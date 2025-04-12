@@ -28,9 +28,16 @@ void set_weights(State* state, const EvalWeights weights) {
     state->weights = weights;
 }
 
-Move act(State* state, const char *position, double time_remaining) {
+void new_game(State *state) {
+    memset(state->tt, 0, sizeof(Entry) * state->tt_size);
+}
+
+MoveWithMateInfo act(State* state, const char *position, double time_remaining) {
     (void) time_remaining;
     Position pos = position_from_fen(position);
+
+    // Freeze this position to a zero score to avoid repetitions
+    tt_freeze(state, &pos);
 
     if (state->debug) {
         position_print(&pos);
@@ -50,6 +57,11 @@ Move act(State* state, const char *position, double time_remaining) {
     // }
 
     return search(state, &pos, allocated_time);
+}
+
+int static_eval_position(State *state, const char *position) {
+    Position pos = position_from_fen(position);
+    return eval(state, &pos);
 }
 
 void destroy(State *state) {

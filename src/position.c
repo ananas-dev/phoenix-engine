@@ -133,6 +133,14 @@ Position make_move(State *state, Position *pos, Move move) {
     new_pos.side_to_move = 1 - new_pos.side_to_move;
     new_pos.hash ^= state->zobrists.side_to_move;
 
+    if (new_pos.ply > 10) {
+        if (bb_is_empty(move.captures)) {
+            new_pos.half_move_clock++;
+        } else {
+            new_pos.half_move_clock = 0;
+        }
+    }
+
     return new_pos;
 }
 
@@ -197,6 +205,9 @@ Position position_from_fen(const char *fen_str) {
 
     // FIXME: Use strtol to report erros
     position.ply = atoi(ply_str);
+
+    char *hmc_str = strtok(NULL, " ");
+    position.half_move_clock = atoi(hmc_str);
 
     char *side_to_move_str = strtok(NULL, " ");
 
