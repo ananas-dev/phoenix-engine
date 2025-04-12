@@ -12,7 +12,7 @@ checkpoint_idx = 0
 
 def checkpoint(weights):
     weights_array = np.array(weights, dtype=int)
-    np.savetxt("checkpoint_.txt", weights_array)
+    np.savetxt("checkpoint.txt", weights_array)
 
 def E(w):
     agent.set_weights(w)
@@ -22,6 +22,7 @@ def local_optimize(initial_guess):
     n_params = len(initial_guess)
     best_params = initial_guess.copy()
     best_e = E(best_params)
+    checkpoint(best_params)
 
     improved = True
     i = 0
@@ -50,7 +51,7 @@ def local_optimize(initial_guess):
                     improved = True
         i += 1
         if i % 10 == 0:
-            checkpoint(weights=best_params)
+            checkpoint(best_params)
 
     return best_params
 

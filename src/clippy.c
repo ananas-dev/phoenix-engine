@@ -18,7 +18,7 @@ State* init(bool debug) {
     movegen_init(state);
     position_init(state);
     eval_init(state);
-    tt_init(state, 16777216);
+    //tt_init(state, 16777216);
 
     return state;
 }

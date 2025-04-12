@@ -197,8 +197,8 @@ int eval(State *state, Position *position) {
         king_mobility += bb_popcnt(attacks & ~all_pieces);
         king_shelter += bb_popcnt(attacks & white_pieces);
 
-        op_king_position += w[W_OP_GENERAL_PIECE_TABLE + white_king_pos];
-        eg_king_position += w[W_EG_GENERAL_PIECE_TABLE + white_king_pos];
+        op_king_position += w[W_OP_KING_PIECE_TABLE + white_king_pos];
+        eg_king_position += w[W_EG_KING_PIECE_TABLE + white_king_pos];
     }
 
     if (num_black_king > 0) {
@@ -207,8 +207,8 @@ int eval(State *state, Position *position) {
         king_mobility -= bb_popcnt(attacks & ~all_pieces);
         king_shelter -= bb_popcnt(attacks & black_pieces);
 
-        op_king_position -= w[W_OP_GENERAL_PIECE_TABLE + (SQ_H7 - black_king_pos)];
-        eg_king_position -= w[W_EG_GENERAL_PIECE_TABLE + (SQ_H7 - black_king_pos)];
+        op_king_position -= w[W_OP_KING_PIECE_TABLE + (SQ_H7 - black_king_pos)];
+        eg_king_position -= w[W_EG_KING_PIECE_TABLE + (SQ_H7 - black_king_pos)];
     }
 
     int control = bb_popcnt(w_controlled_squares) - bb_popcnt(b_controlled_squares);
