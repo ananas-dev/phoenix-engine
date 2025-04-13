@@ -94,7 +94,7 @@ class IAAgent(Agent):
         self.lib = ctypes.CDLL(path)
         self.lib.act.argtypes = [StatePtr, ctypes.c_char_p, ctypes.c_double]
         self.lib.load_position_db.argtypes = [StatePtr, ctypes.c_char_p]
-        self.lib.evaluation_error.argtypes = [StatePtr]
+        self.lib.evaluation_error.argtypes = [StatePtr, ctypes.c_double]
         self.lib.evaluation_error.restype = ctypes.c_double
         self.lib.act.restype = Move
         self.lib.init.argtypes = [ctypes.c_bool]
@@ -144,8 +144,8 @@ class IAAgent(Agent):
     def found_mate(self):
         return self.__found_mate
 
-    def evaluation_error(self):
-        return self.lib.evaluation_error(self.state)
+    def evaluation_error(self, k):
+        return self.lib.evaluation_error(self.state, k)
 
     def load_position_db(self, file_name):
         return self.lib.load_position_db(self.state, file_name.encode("utf-8"))
