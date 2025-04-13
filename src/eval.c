@@ -46,6 +46,7 @@ void eval_init(State *state) {
     memset(state->weights, 0, sizeof(int) * W_COUNT);
     state->weights[W_OP_GENERAL_MATERIAL] = 500;
     state->weights[W_EG_GENERAL_MATERIAL] = 500;
+    state->weights[W_OP_SOLDIER_MATERIAL] = 100;
     state->weights[W_EG_SOLDIER_MATERIAL] = 100;
     state->weights[W_OP_GENERAL_MOBILITY] = 8;
     state->weights[W_EG_GENERAL_MOBILITY] = 8;
@@ -72,6 +73,18 @@ int eval(State *state, Position *position) {
     int num_black_soldier = bb_popcnt(position->pieces[COLOR_BLACK][PIECE_SOLDIER]);
     int num_black_general = bb_popcnt(position->pieces[COLOR_BLACK][PIECE_GENERAL]);
     int num_black_king = bb_popcnt(position->pieces[COLOR_BLACK][PIECE_KING]);
+
+    // Drawn endgames
+    if (
+        num_white_soldier <= 1 &&
+        num_black_soldier <= 1 &&
+        num_white_general == 0 &&
+        num_black_general == 0 &&
+        num_black_king > 0 &&
+        num_white_king > 0
+    ) {
+        return 0;
+    }
 
     // Precalculate king positions
     Square white_king_pos = -1;
@@ -234,7 +247,7 @@ int eval(State *state, Position *position) {
 
     int opening_score = (
         king_material * 10000 + // assert there is a king or continue to quiesce
-        soldier_material * 100 +
+        soldier_material * w[W_EG_SOLDIER_MATERIAL] +
         general_material * w[W_OP_GENERAL_MATERIAL] +
         soldier_mobility * w[W_OP_SOLDIER_MOBILITY] +
         soldier_king_dist * w[W_OP_SOLDIER_KING_DIST] +

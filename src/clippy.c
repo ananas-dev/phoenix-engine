@@ -69,8 +69,8 @@ MoveWithMateInfo act(State* state, const char *position, double time_remaining) 
     return search(state, &pos, allocated_time);
 }
 
-double sigmoid(double s) {
-    return 1.0 / (1.0 + exp(-s * log(10.0) * 4.0 / 400.0));
+double sigmoid(double s, double k) {
+    return 1.0 / (1.0 + exp(-s * log(10.0) * k / 400.0));
 }
 
 void load_position_db(State *state, const char *file_name) {
@@ -121,7 +121,7 @@ void load_position_db(State *state, const char *file_name) {
         Position pos = position_from_fen(fen_str);
 
         // Skip positions with a missing king because they don't matter
-        if (bb_popcnt(pos.pieces[COLOR_WHITE][PIECE_KING]) == 0 || bb_popcnt(pos.pieces[COLOR_WHITE][PIECE_KING]) == 0) {
+        if (bb_popcnt(pos.pieces[COLOR_WHITE][PIECE_KING]) == 0 || bb_popcnt(pos.pieces[COLOR_BLACK][PIECE_KING]) == 0) {
             continue;
         }
 
@@ -134,7 +134,7 @@ void load_position_db(State *state, const char *file_name) {
     state->position_db.size = N;  // Store actual count if useful
 }
 
-double evaluation_error(State *state) {
+double evaluation_error(State *state, double k) {
     double sum = 0.0;
     for (uint64_t i = 0; i < state->position_db.size; i++) {
         Position *position = &state->position_db.positions[i];
@@ -142,7 +142,7 @@ double evaluation_error(State *state) {
                      ? eval(state, position)
                      : -eval(state, position);
 
-        double error = state->position_db.results[i] - sigmoid(q_i);
+        double error = state->position_db.results[i] - sigmoid(q_i, k);
         sum += error * error;
 
     }

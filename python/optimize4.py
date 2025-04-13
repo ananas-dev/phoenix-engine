@@ -9,10 +9,12 @@ agent = IAAgent(0, "../cmake-build-release/libclippy.so")
 agent.set_weights(w)
 agent.load_position_db("db2.txt")
 
+k = 4.0
+
 # Dummy E function (replace with your real implementation)
 def E(params):
     agent.set_weights([int(x) for x in params])
-    return agent.evaluation_error()
+    return agent.evaluation_error(4.0)
 
 # Local search (same as in Texel's pseudocode)
 def local_optimize(initial_guess):
@@ -40,7 +42,7 @@ def hybrid_optimize(initial_guess):
     initial_guess = np.array(initial_guess, dtype=float)
 
     # Phase 1: Scipy optimization (float domain)
-    bounds = [(-100, 100)] * 360
+    bounds = [(-100, 200)] * 360
     bounds[336] = (0, 1000)
     bounds[347] = (0, 1000)
     bounds[348] = (0, 1000)
