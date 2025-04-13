@@ -247,7 +247,7 @@ int eval(State *state, Position *position) {
 
     int opening_score = (
         king_material * 10000 + // assert there is a king or continue to quiesce
-        soldier_material * w[W_EG_SOLDIER_MATERIAL] +
+        soldier_material * w[W_OP_SOLDIER_MATERIAL] +
         general_material * w[W_OP_GENERAL_MATERIAL] +
         soldier_mobility * w[W_OP_SOLDIER_MOBILITY] +
         soldier_king_dist * w[W_OP_SOLDIER_KING_DIST] +
