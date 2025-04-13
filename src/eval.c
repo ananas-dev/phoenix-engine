@@ -44,6 +44,14 @@ int count_square_structures(State *state, Position *position) {
 
 void eval_init(State *state) {
     memset(state->weights, 0, sizeof(int) * W_COUNT);
+    state->weights[W_OP_GENERAL_MATERIAL] = 500;
+    state->weights[W_EG_GENERAL_MATERIAL] = 500;
+    state->weights[W_EG_SOLDIER_MATERIAL] = 100;
+    state->weights[W_OP_GENERAL_MOBILITY] = 8;
+    state->weights[W_EG_GENERAL_MOBILITY] = 8;
+    state->weights[W_OP_SOLDIER_KING_DIST] = 5;
+    state->weights[W_EG_SOLDIER_KING_DIST] = 5;
+    state->weights[W_EG_KING_CHASE] = 10;
 
     for (Square i = SQ_A1; i <= SQ_H7; i++) {
         for (Square j = SQ_A1; j <= SQ_H7; j++) {
