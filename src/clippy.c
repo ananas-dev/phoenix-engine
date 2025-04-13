@@ -36,7 +36,6 @@ void set_weights(State* state, const int* weights, int size) {
         exit(1);
     }
     memcpy(state->weights, weights, W_COUNT * sizeof(int));
-    print_weights(state);
 }
 
 void new_game(State *state) {
@@ -70,31 +69,41 @@ MoveWithMateInfo act(State* state, const char *position, double time_remaining) 
     return search(state, &pos, allocated_time);
 }
 
-int static_eval_position(State *state, const char *position) {
-    Position pos = position_from_fen(position);
-    return eval(state, &pos);
-}
-
 double sigmoid(double s) {
-    return 1.0 / (1.0 + pow(10.0, -4.0 * s / 400.0));
+    return 1.0 / (1.0 + exp(-s * log(10.0) * 4.0 / 400.0));
 }
 
-double evaluation_error(State *state, const char *file_name) {
+void load_position_db(State *state, const char *file_name) {
     FILE *file = fopen(file_name, "r");
     if (file == NULL) {
         perror("Error opening file");
         exit(1);
     }
 
-    double sum = 0.0;
-    uint64_t N = 0;
-
+    // First pass: count number of lines
+    uint64_t line_count = 0;
     char buffer[1024];
     while (fgets(buffer, sizeof(buffer), file)) {
-        // Remove trailing newline
+        if (buffer[0] != '\n' && buffer[0] != '\r') {
+            line_count++;
+        }
+    }
+
+    // Allocate exact size
+    state->position_db.positions = malloc(line_count * sizeof(Position));
+    state->position_db.results = malloc(line_count * sizeof(double));
+    if (!state->position_db.positions || !state->position_db.results) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(1);
+    }
+
+    // Second pass: parse data
+    rewind(file);
+    uint64_t N = 0;
+
+    while (fgets(buffer, sizeof(buffer), file)) {
         buffer[strcspn(buffer, "\r\n")] = 0;
 
-        // Parse FEN and score
         char *fen_str = strtok(buffer, ",");
         char *score_str = strtok(NULL, ",");
 
@@ -109,24 +118,36 @@ double evaluation_error(State *state, const char *file_name) {
             continue;
         }
 
-        Position position = position_from_fen(fen_str);
-        double q_i = position.side_to_move == COLOR_WHITE
-                     ? eval(state, &position)
-                     : -eval(state, &position);
+        Position pos = position_from_fen(fen_str);
 
-        double error = R_i - sigmoid(q_i);
-        sum += error * error;
+        // Skip positions with a missing king because they don't matter
+        if (bb_popcnt(pos.pieces[COLOR_WHITE][PIECE_KING]) == 0 || bb_popcnt(pos.pieces[COLOR_WHITE][PIECE_KING]) == 0) {
+            continue;
+        }
+
+        state->position_db.positions[N] = pos;
+        state->position_db.results[N] = R_i;
         N++;
     }
 
     fclose(file);
+    state->position_db.size = N;  // Store actual count if useful
+}
 
-    if (N == 0) {
-        fprintf(stderr, "No valid lines parsed.\n");
-        return 0.0; // or NAN or error value
+double evaluation_error(State *state) {
+    double sum = 0.0;
+    for (uint64_t i = 0; i < state->position_db.size; i++) {
+        Position *position = &state->position_db.positions[i];
+        double q_i = position->side_to_move == COLOR_WHITE
+                     ? eval(state, position)
+                     : -eval(state, position);
+
+        double error = state->position_db.results[i] - sigmoid(q_i);
+        sum += error * error;
+
     }
 
-    return sum / (double)N;
+    return sum / (double)state->position_db.size;
 }
 
 void destroy(State *state) {

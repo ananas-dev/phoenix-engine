@@ -77,6 +77,16 @@ static inline int sq_get(File file, Rank rank) {
     return 8 * rank + file;
 }
 
+static inline Square sq_mirror(Square sq) {
+    File file = sq_file(sq);
+    Rank rank = sq_rank(sq);
+
+    File mirrored_file = FILE_H - file;
+    Rank mirrored_rank = RANK_7 - rank;
+
+    return sq_get(mirrored_file, mirrored_rank);
+}
+
 static inline void sq_to_string(Square sq, char str[3]) {
     int rank = sq_rank(sq);
     int file = sq_file(sq);

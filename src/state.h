@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sys/time.h>
+#include "position.h"
 
 #define MAX_PLY 128
 #define PV_TABLE_SIZE 64
@@ -82,8 +83,18 @@ typedef enum {
     W_COUNT  // Always a good idea to have a count for loops etc.
 } Weight;
 
+typedef struct Position Position;
+
+typedef struct {
+    Position *positions;
+    double *results;
+    uint64_t size;
+} PositionDB;
+
 typedef struct {
     bool debug;
+
+    PositionDB position_db;
 
     // Eval
     int weights[W_COUNT];

@@ -149,8 +149,8 @@ int eval(State *state, Position *position) {
 
         king_threats -= bb_popcnt(attacks & position->pieces[COLOR_WHITE][PIECE_KING]);
 
-        op_soldier_position -= w[W_OP_SOLDIER_PIECE_TABLE + (SQ_H7 - from)];
-        eg_soldier_position -= w[W_EG_SOLDIER_PIECE_TABLE + (SQ_H7 - from)];
+        op_soldier_position -= w[W_OP_SOLDIER_PIECE_TABLE + sq_mirror(from)];
+        eg_soldier_position -= w[W_EG_SOLDIER_PIECE_TABLE + sq_mirror(from)];
     }
 
     // GENERAL ITER
@@ -179,8 +179,8 @@ int eval(State *state, Position *position) {
 
         king_threats -= bb_popcnt(attacks & position->pieces[COLOR_WHITE][PIECE_KING]);
 
-        op_general_position -= w[W_OP_GENERAL_PIECE_TABLE + (SQ_H7 - from)];
-        eg_general_position -= w[W_EG_GENERAL_PIECE_TABLE + (SQ_H7 - from)];
+        op_general_position -= w[W_OP_GENERAL_PIECE_TABLE + sq_mirror(from)];
+        eg_general_position -= w[W_EG_GENERAL_PIECE_TABLE + sq_mirror(from)];
     }
 
     // KING ITER
@@ -215,8 +215,8 @@ int eval(State *state, Position *position) {
         king_mobility -= bb_popcnt(attacks & ~all_pieces);
         king_shelter -= bb_popcnt(attacks & black_pieces);
 
-        op_king_position -= w[W_OP_KING_PIECE_TABLE + (SQ_H7 - black_king_pos)];
-        eg_king_position -= w[W_EG_KING_PIECE_TABLE + (SQ_H7 - black_king_pos)];
+        op_king_position -= w[W_OP_KING_PIECE_TABLE + sq_mirror(black_king_pos)];
+        eg_king_position -= w[W_EG_KING_PIECE_TABLE + sq_mirror(black_king_pos)];
     }
 
     int control = bb_popcnt(w_controlled_squares) - bb_popcnt(b_controlled_squares);

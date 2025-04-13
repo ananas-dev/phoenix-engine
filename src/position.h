@@ -7,7 +7,7 @@
 
 #define FEN_START "SSSSSS2/SSSSS2s/SSSS2ss/SSS2sss/SS2ssss/S2sssss/2ssssss 0 w 00"
 
-typedef struct {
+struct Position {
     Bitboard pieces[NUM_COLOR][NUM_PIECE];
     uint64_t hash;
     uint16_t ply;
@@ -15,7 +15,7 @@ typedef struct {
     Color side_to_move;
     bool can_create_general;
     bool can_create_king;
-} Position;
+};
 
 void position_init(State *state);
 
