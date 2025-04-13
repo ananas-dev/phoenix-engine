@@ -18,9 +18,16 @@ State* init(bool debug) {
     movegen_init(state);
     position_init(state);
     eval_init(state);
-    //tt_init(state, 16777216);
+    tt_init(state, 16777216);
 
     return state;
+}
+
+void print_weights(State* state) {
+    printf("Weights (%d total):\n", W_COUNT);
+    for (int i = 0; i < W_COUNT; i++) {
+        printf("weights[%d] = %d\n", i, state->weights[i]);
+    }
 }
 
 void set_weights(State* state, const int* weights, int size) {
@@ -29,6 +36,7 @@ void set_weights(State* state, const int* weights, int size) {
         exit(1);
     }
     memcpy(state->weights, weights, W_COUNT * sizeof(int));
+    print_weights(state);
 }
 
 void new_game(State *state) {
