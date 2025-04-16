@@ -1,11 +1,9 @@
-#include "bitboard.h"
-#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "collections.h"
+#include "list.h"
 #include "eval.h"
 #include "movegen.h"
 #include "position.h"

@@ -2,7 +2,6 @@
 
 #include "move.h"
 #include "position.h"
-#include "state.h"
 
 void movegen_init(Context *ctx);
 void legal_moves(Context *ctx, Position *pos, MoveList *move_list);

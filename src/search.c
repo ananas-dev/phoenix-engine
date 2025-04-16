@@ -5,7 +5,6 @@
 #include <string.h>
 #include <sys/time.h>
 
-#include "collections.h"
 #include "eval.h"
 #include "movegen.h"
 #include "position.h"
