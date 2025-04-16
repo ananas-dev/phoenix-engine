@@ -3,11 +3,11 @@
 #include "core.h"
 #include "bitboard.h"
 #include "move.h"
-#include "state.h"
+#include "context.h"
 
 #define FEN_START "SSSSSS2/SSSSS2s/SSSS2ss/SSS2sss/SS2ssss/S2sssss/2ssssss 0 w 00"
 
-struct Position {
+typedef struct {
     Bitboard pieces[NUM_COLOR][NUM_PIECE];
     uint64_t hash;
     uint16_t ply;
@@ -15,9 +15,9 @@ struct Position {
     Color side_to_move;
     bool can_create_general;
     bool can_create_king;
-};
+} Position;
 
-void position_init(State *state);
+void position_init(Context *ctx);
 
 static inline GameState position_state(Position *pos) {
     if (pos->half_move_clock >= 50) {
@@ -39,7 +39,7 @@ static inline int count_pieces(Position *pos, Piece piece_type) {
     return bb_popcnt(pos->pieces[COLOR_WHITE][piece_type]) + bb_popcnt(pos->pieces[COLOR_BLACK][piece_type]);
 }
 
-Position make_move(State *state, Position *pos, Move move);
+Position make_move(Context *ctx, Position *pos, Move move);
 Position position_from_fen(const char *fen_str);
 void position_print(Position *pos);
 

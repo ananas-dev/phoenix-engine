@@ -2,5 +2,5 @@
 
 #include "position.h"
 
-void eval_init(State *state);
-int eval(State *state, Position *position);
+void eval_init(Context *ctx);
+int eval(Context *ctx, Position *position);

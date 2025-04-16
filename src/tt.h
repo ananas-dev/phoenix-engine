@@ -6,7 +6,21 @@
 
 #define TT_MISS INT_MIN
 
-void tt_init(State *state, int size);
-void tt_freeze(State *state, Position *position);
-void tt_set(State *state, Position *position, uint8_t depth, int val, EntryType type, PackedMove best_move);
-int tt_get(State *state, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move);
+typedef enum {
+    ENTRY_TYPE_EXACT,
+    ENTRY_TYPE_ALPHA,
+    ENTRY_TYPE_BETA
+} TTEntryType;
+
+typedef struct TTEntry {
+    Bitboard hash;
+    TTEntryType type;
+    int val;
+    PackedMove best_move;
+    uint8_t depth;
+} TTEntry;
+
+void tt_init(Context *ctx, int size);
+void tt_freeze(Context *ctx, Position *position);
+void tt_set(Context *ctx, Position *position, uint8_t depth, int val, TTEntryType type, PackedMove best_move);
+int tt_get(Context *ctx, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move);

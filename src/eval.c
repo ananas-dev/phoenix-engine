@@ -1,14 +1,12 @@
 #include "eval.h"
 
-#include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "bitboard.h"
 #include "movegen.h"
 
-void square_structure_init(State *state) {
+void square_structure_init(Context *ctx) {
     for (File file = FILE_A; file <= FILE_G; file++) {
         for (Rank rank = RANK_1; rank <= RANK_6; rank++) {
             Bitboard square_structure = BB_EMPTY;
@@ -17,17 +15,17 @@ void square_structure_init(State *state) {
             square_structure |= bb_from_sq(sq_get(file + 1, rank + 1));
             square_structure |= bb_from_sq(sq_get(file, rank + 1));
 
-            state->square_structure_table[file][rank] = square_structure;
+            ctx->square_structure_table[file][rank] = square_structure;
         }
     }
 }
 
-int count_square_structures(State *state, Position *position) {
+int count_square_structures(Context *ctx, Position *position) {
     int count = 0;
 
     for (File file = FILE_A; file <= FILE_G; file++) {
         for (Rank rank = RANK_1; rank <= RANK_6; rank++) {
-            Bitboard square_structure = state->square_structure_table[file][rank];
+            Bitboard square_structure = ctx->square_structure_table[file][rank];
 
             if (bb_popcnt(square_structure & position->pieces[COLOR_WHITE][PIECE_SOLDIER]) == 4) {
                 count++;
@@ -42,30 +40,30 @@ int count_square_structures(State *state, Position *position) {
     return count;
 }
 
-void eval_init(State *state) {
-    memset(state->weights, 0, sizeof(int) * W_COUNT);
-    state->weights[W_OP_GENERAL_MATERIAL] = 500;
-    state->weights[W_EG_GENERAL_MATERIAL] = 500;
-    state->weights[W_OP_SOLDIER_MATERIAL] = 100;
-    state->weights[W_EG_SOLDIER_MATERIAL] = 100;
-    state->weights[W_OP_GENERAL_MOBILITY] = 8;
-    state->weights[W_EG_GENERAL_MOBILITY] = 8;
-    state->weights[W_OP_SOLDIER_KING_DIST] = 5;
-    state->weights[W_EG_SOLDIER_KING_DIST] = 5;
-    state->weights[W_EG_KING_CHASE] = 10;
+void eval_init(Context *ctx) {
+    memset(ctx->weights, 0, sizeof(int) * W_COUNT);
+    ctx->weights[W_OP_GENERAL_MATERIAL] = 500;
+    ctx->weights[W_EG_GENERAL_MATERIAL] = 500;
+    ctx->weights[W_OP_SOLDIER_MATERIAL] = 100;
+    ctx->weights[W_EG_SOLDIER_MATERIAL] = 100;
+    ctx->weights[W_OP_GENERAL_MOBILITY] = 8;
+    ctx->weights[W_EG_GENERAL_MOBILITY] = 8;
+    ctx->weights[W_OP_SOLDIER_KING_DIST] = 5;
+    ctx->weights[W_EG_SOLDIER_KING_DIST] = 5;
+    ctx->weights[W_EG_KING_CHASE] = 10;
 
     for (Square i = SQ_A1; i <= SQ_H7; i++) {
         for (Square j = SQ_A1; j <= SQ_H7; j++) {
-            state->distance[i][j] = 13 - (abs(sq_file(i) - sq_file(j)) + abs(sq_rank(i) - sq_rank(j)));
+            ctx->distance[i][j] = 13 - (abs(sq_file(i) - sq_file(j)) + abs(sq_rank(i) - sq_rank(j)));
         }
     }
 
-    square_structure_init(state);
+    square_structure_init(ctx);
 }
 
-int eval(State *state, Position *position) {
+int eval(Context *ctx, Position *position) {
     int turn = position->side_to_move == COLOR_WHITE ? 1 : -1;
-    int *w = state->weights;
+    int *w = ctx->weights;
 
     int num_white_soldier = bb_popcnt(position->pieces[COLOR_WHITE][PIECE_SOLDIER]);
     int num_white_general = bb_popcnt(position->pieces[COLOR_WHITE][PIECE_GENERAL]);
@@ -104,7 +102,7 @@ int eval(State *state, Position *position) {
     Bitboard black_pieces = pieces_by_color(position, COLOR_BLACK) & BB_USED;
     Bitboard all_pieces = white_pieces | black_pieces;
 
-    int square_structures = count_square_structures(state, position);
+    int square_structures = count_square_structures(ctx, position);
 
     int op_soldier_position = 0;
     int op_general_position = 0;
@@ -129,7 +127,7 @@ int eval(State *state, Position *position) {
     Bitboard w_soldier_it = position->pieces[COLOR_WHITE][PIECE_SOLDIER] & BB_USED;
     while (w_soldier_it) {
         Square from = bb_it_next(&w_soldier_it);
-        Bitboard attacks = soldier_attacks(state, from);
+        Bitboard attacks = soldier_attacks(ctx, from);
         w_controlled_squares |= attacks;
 
         ss_pairs += bb_popcnt(attacks & position->pieces[COLOR_WHITE][PIECE_SOLDIER]);
@@ -137,7 +135,7 @@ int eval(State *state, Position *position) {
         soldier_mobility += bb_popcnt(attacks & ~all_pieces);
 
         if (num_black_king > 0) {
-            soldier_king_dist += state->distance[from][black_king_pos];
+            soldier_king_dist += ctx->distance[from][black_king_pos];
         }
 
         king_threats += bb_popcnt(attacks & position->pieces[COLOR_BLACK][PIECE_KING]);
@@ -149,7 +147,7 @@ int eval(State *state, Position *position) {
     Bitboard b_soldier_it = position->pieces[COLOR_BLACK][PIECE_SOLDIER] & BB_USED;
     while (b_soldier_it) {
         Square from = bb_it_next(&b_soldier_it);
-        Bitboard attacks = soldier_attacks(state, from);
+        Bitboard attacks = soldier_attacks(ctx, from);
         b_controlled_squares |= attacks;
 
         ss_pairs -= bb_popcnt(attacks & position->pieces[COLOR_BLACK][PIECE_SOLDIER]);
@@ -157,7 +155,7 @@ int eval(State *state, Position *position) {
         soldier_mobility -= bb_popcnt(attacks & ~all_pieces);
 
         if (num_white_king > 0) {
-            soldier_king_dist -= state->distance[from][white_king_pos];
+            soldier_king_dist -= ctx->distance[from][white_king_pos];
         }
 
         king_threats -= bb_popcnt(attacks & position->pieces[COLOR_WHITE][PIECE_KING]);
@@ -173,7 +171,7 @@ int eval(State *state, Position *position) {
     Bitboard w_general_it = position->pieces[COLOR_WHITE][PIECE_GENERAL] & BB_USED;
     while (w_general_it) {
         Square from = bb_it_next(&w_general_it);
-        Bitboard attacks = general_attacks(state, from, all_pieces);
+        Bitboard attacks = general_attacks(ctx, from, all_pieces);
         w_controlled_squares |= attacks;
         general_mobility += bb_popcnt(attacks & ~all_pieces);
 
@@ -186,7 +184,7 @@ int eval(State *state, Position *position) {
     Bitboard b_general_it = position->pieces[COLOR_BLACK][PIECE_GENERAL] & BB_USED;
     while (b_general_it) {
         Square from = bb_it_next(&b_general_it);
-        Bitboard attacks = general_attacks(state, from, all_pieces);
+        Bitboard attacks = general_attacks(ctx, from, all_pieces);
         b_controlled_squares |= attacks;
         general_mobility -= bb_popcnt(attacks & ~all_pieces);
 
@@ -203,7 +201,7 @@ int eval(State *state, Position *position) {
     int king_chase = 0;
 
     if (num_white_king > 0 && num_black_king > 0) {
-        int kings_distance = state->distance[white_king_pos][black_king_pos];
+        int kings_distance = ctx->distance[white_king_pos][black_king_pos];
         if (num_black_general == 0 && num_white_general > 0) {
             king_chase += kings_distance;
         } else if (num_white_general == 0 && num_black_general > 0) {
@@ -213,7 +211,7 @@ int eval(State *state, Position *position) {
 
 
     if (num_white_king > 0) {
-        Bitboard attacks = king_attacks(state, white_king_pos);
+        Bitboard attacks = king_attacks(ctx, white_king_pos);
         w_controlled_squares |= attacks;
         king_mobility += bb_popcnt(attacks & ~all_pieces);
         king_shelter += bb_popcnt(attacks & white_pieces);
@@ -223,7 +221,7 @@ int eval(State *state, Position *position) {
     }
 
     if (num_black_king > 0) {
-        Bitboard attacks = king_attacks(state, black_king_pos);
+        Bitboard attacks = king_attacks(ctx, black_king_pos);
         b_controlled_squares |= attacks;
         king_mobility -= bb_popcnt(attacks & ~all_pieces);
         king_shelter -= bb_popcnt(attacks & black_pieces);

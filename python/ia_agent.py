@@ -83,6 +83,11 @@ class Move(ctypes.Structure):
         ("found_mate", ctypes.c_bool),
     ]
 
+class Context(ctypes.Structure):
+    pass
+
+ContextPtr = ctypes.POINTER(Context)
+
 class State(ctypes.Structure):
     pass
 
@@ -92,27 +97,51 @@ class IAAgent(Agent):
     def __init__(self, player, path, debug=False):
         super().__init__(player)
         self.lib = ctypes.CDLL(path)
+
+        # Act function
         self.lib.act.argtypes = [StatePtr, ctypes.c_char_p, ctypes.c_double]
-        self.lib.load_position_db.argtypes = [StatePtr, ctypes.c_char_p]
-        self.lib.evaluation_error.argtypes = [StatePtr, ctypes.c_double]
-        self.lib.evaluation_error.restype = ctypes.c_double
         self.lib.act.restype = Move
-        self.lib.init.argtypes = [ctypes.c_bool]
-        self.lib.init.restype = StatePtr
-        self.lib.set_weights.argtypes = [StatePtr, ctypes.POINTER(ctypes.c_int), ctypes.c_int]
-        self.lib.destroy.argtypes = [StatePtr]
-        self.lib.new_game.argtypes = [StatePtr]
-        self.state = self.lib.init(debug)
+
+        # # Load position function
+        # self.lib.load_position_db.argtypes = [StatePtr, ctypes.c_char_p]
+        # self.lib.load_position_db.argtypes = [StatePtr, ctypes.c_char_p]
+        #
+        # # Eval error function
+        # self.lib.evaluation_error.argtypes = [StatePtr, ctypes.c_double]
+        # self.lib.evaluation_error.restype = ctypes.c_double
+
+        # Init function
+        self.lib.init_context.argtypes = [ctypes.c_bool]
+        self.lib.init_context.restype = ContextPtr
+
+        # Set weight function
+        self.lib.set_weights.argtypes = [ContextPtr, ctypes.POINTER(ctypes.c_int), ctypes.c_int]
+
+        # Destroy function
+        self.lib.destroy_context.argtypes = [ContextPtr]
+        self.lib.destroy_state.argtypes = [StatePtr]
+
+        # New game function
+        self.lib.new_game.argtypes = [ContextPtr, StatePtr]
+        self.lib.new_game.restype = StatePtr
+
         self.__found_mate = False
+        self.__state = None
+        self.__ctx = self.lib.init_context(debug)
 
     def new_game(self):
         self.__found_mate = False
-        self.lib.new_game(self.state)
+        print("new game")
+        self.__state = self.lib.new_game(self.__ctx, self.__state)
 
     def act(self, state, remaining_time):
+        if state.turn < 2:
+            print("New game")
+            self.new_game()
+
         fen = state_to_fen(state)
 
-        move = self.lib.act(self.state, fen.encode("utf-8"), remaining_time)
+        move = self.lib.act(self.__state, fen.encode("utf-8"), remaining_time)
 
         src_file = move.src & 7
         src_rank = move.src >> 3
@@ -134,6 +163,10 @@ class IAAgent(Agent):
         return action
 
     def act_random(self, state, remaining_time):
+        if state.turn < 2:
+            print("New game")
+            self.new_game()
+
         actions = state.actions()
         if len(actions) == 0:
             raise Exception("No action available.")
@@ -144,16 +177,19 @@ class IAAgent(Agent):
     def found_mate(self):
         return self.__found_mate
 
-    def evaluation_error(self, k):
-        return self.lib.evaluation_error(self.state, k)
-
-    def load_position_db(self, file_name):
-        return self.lib.load_position_db(self.state, file_name.encode("utf-8"))
+    # def evaluation_error(self, k):
+    #     return self.lib.evaluation_error(self.state, k)
+    #
+    # def load_position_db(self, file_name):
+    #     return self.lib.load_position_db(self.state, file_name.encode("utf-8"))
 
     def set_weights(self, weights: list[int]):
         Weights = ctypes.c_int * len(weights)
         arr = Weights(*weights)
-        self.lib.set_weights(self.state, arr, len(weights))
+        self.lib.set_weights(self.__ctx, arr, len(weights))
 
     def __del__(self):
-        self.lib.destroy(self.state)
+        if self.__state is not None:
+            self.lib.destroy_state(self.__state)
+
+        self.lib.destroy_context(self.__ctx)

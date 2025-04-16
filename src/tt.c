@@ -2,19 +2,19 @@
 #include <stdlib.h>
 #include <assert.h>
 
-void tt_init(State *state, int size) {
-    Entry *tt = malloc(sizeof(Entry) * size);
+void tt_init(Context *ctx, int size) {
+    TTEntry *tt = malloc(sizeof(TTEntry) * size);
     assert(tt != NULL && "Could not init transposition table");
-    state->tt = tt;
-    state->tt_size = size;
+    ctx->tt = tt;
+    ctx->tt_size = size;
 }
 
-void tt_set(State *state, Position *position, uint8_t depth, int val, EntryType type, PackedMove best_move) {
-    Entry *entry = &state->tt[position->hash & (state->tt_size - 1)];
+void tt_set(Context *ctx, Position *position, uint8_t depth, int val, TTEntryType type, PackedMove best_move) {
+    TTEntry *entry = &ctx->tt[position->hash & (ctx->tt_size - 1)];
 
     if ((position->hash == entry->hash) && (depth <= entry->depth)) return;
 
-    *entry = (Entry) {
+    *entry = (TTEntry) {
         .hash = position->hash,
         .depth = depth,
         .val = val,
@@ -24,10 +24,10 @@ void tt_set(State *state, Position *position, uint8_t depth, int val, EntryType 
 }
 
 // Hacky repetition checker
-void tt_freeze(State *state, Position *position) {
-    Entry *entry = &state->tt[position->hash & (state->tt_size - 1)];
+void tt_freeze(Context *ctx, Position *position) {
+    TTEntry *entry = &ctx->tt[position->hash & (ctx->tt_size - 1)];
 
-    *entry = (Entry) {
+    *entry = (TTEntry) {
         .hash = position->hash,
         .depth = 255,
         .val = 0,
@@ -36,8 +36,8 @@ void tt_freeze(State *state, Position *position) {
     };
 }
 
-int tt_get(State *state, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move) {
-    Entry *entry = &state->tt[position->hash & (state->tt_size - 1)];
+int tt_get(Context *ctx, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move) {
+    TTEntry *entry = &ctx->tt[position->hash & (ctx->tt_size - 1)];
 
     if (position->hash == entry->hash) {
         *best_move = entry->best_move;
@@ -60,6 +60,6 @@ int tt_get(State *state, Position *position, uint8_t depth, int alpha, int beta,
     return TT_MISS;
 }
 
-void tt_free(Entry *tt) {
+void tt_free(TTEntry *tt) {
     free(tt);
 }

@@ -123,7 +123,7 @@ MoveWithMateInfo search(State *state, Position *position, double max_time_second
         }
 
         // Only search on full turns during the setup phase
-        if (position->ply + depth < 10 && depth % 2 == 1 - (int)position->side_to_move) {
+        if (position->ply + depth < 10 && depth % 2 == 1 - (int) position->side_to_move) {
             continue;
         }
 
@@ -131,11 +131,11 @@ MoveWithMateInfo search(State *state, Position *position, double max_time_second
 
         int score = alpha_beta(state, position, depth, alpha, beta);
 
-        if (state->debug) {
+        if (state->ctx->debug) {
             if (state->time_over) {
                 printf("Depth=%d, Score=/\n", depth);
             } else {
-                printf("Depth=%d, Score=%.2f\n", depth, (float)score/100.0f);
+                printf("Depth=%d, Score=%.2f\n", depth, (float) score / 100.0f);
             }
 
             for (int i = 0; i < state->pv_table[0].size; i++) {
@@ -154,10 +154,9 @@ MoveWithMateInfo search(State *state, Position *position, double max_time_second
             found_mate = true;
             break; // found a mate in search
         }
-
     }
 
-    return (MoveWithMateInfo) {
+    return (MoveWithMateInfo){
         .from = best_move.from,
         .to = best_move.to,
         .captures = best_move.captures,
@@ -178,7 +177,7 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
         return 0;
     }
 
-    int stand_pat = eval(state, position);
+    int stand_pat = eval(state->ctx, position);
     if (stand_pat >= beta) {
         return beta;
     }
@@ -190,7 +189,7 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
     MoveList move_list;
     move_list.size = 0;
 
-    legal_moves(state, position, &move_list);
+    legal_moves(state->ctx, position, &move_list);
     state->tt_best_move_flag = FLAG_NULL;
     sort_move_list(state, &move_list, position->side_to_move);
 
@@ -211,7 +210,7 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
 
         state->search_ply++;
 
-        Position new_position = make_move(state, position, move);
+        Position new_position = make_move(state->ctx, position, move);
 
         int score = -quiesce(state, &new_position, -beta, -alpha);
 
@@ -250,19 +249,19 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     }
 
     PackedMove tt_best_move = NULL_PACKED_MOVE;
-    int tt_value = tt_get(state, position, depth, alpha, beta, &tt_best_move);
+    int tt_value = tt_get(state->ctx, position, depth, alpha, beta, &tt_best_move);
     packed_move_extract(tt_best_move, &state->tt_best_move_flag, &state->tt_best_move_from, &state->tt_best_move_to);
 
     int pv_node = beta - alpha > 1;
 
-    if (state->search_ply > 0 && tt_value != TT_MISS && pv_node == 0) {
+    if (state->search_ply > 0 && tt_value != TT_MISS && (pv_node == 0 || tt_value == 0)) {
         return tt_value;
     }
 
     if (depth == 0) {
         // Only search at even depth during the setup
         if (position->ply < 10) {
-            return eval(state, position);
+            return eval(state->ctx, position);
         }
 
         return quiesce(state, position, alpha, beta);
@@ -272,7 +271,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
 
     MoveList move_list;
     move_list.size = 0;
-    legal_moves(state, position, &move_list);
+    legal_moves(state->ctx, position, &move_list);
 
     if (state->follow_pv) {
         state->follow_pv = false;
@@ -293,22 +292,28 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     Move best_move = {0};
     bool best_move_valid = false;
 
-    EntryType tt_entry_type = ENTRY_TYPE_ALPHA;
-    bool searched_first_move = false;
+    TTEntryType tt_entry_type = ENTRY_TYPE_ALPHA;
 
     for (int i = 0; i < move_list.size; i++) {
         Move move = move_list.moves[i];
-        Position new_position = make_move(state, position, move);
+        Position new_position = make_move(state->ctx, position, move);
 
         state->search_ply++;
 
         int score;
 
-        if (!searched_first_move) {
+        if (i == 0) {
             score = -alpha_beta(state, &new_position, depth - 1, -beta, -alpha);
-            searched_first_move = true;
         } else {
-            score = -alpha_beta(state, &new_position, depth - 1, -alpha - 1, -alpha);
+            int reduction = (
+                i >= 4 &&
+                depth >= 3 &&
+                bb_popcnt(move.captures) == 0 &&
+                !position->can_create_general &&
+                !position->can_create_king
+            ) ? 1 : 0;
+
+            score = -alpha_beta(state, &new_position, depth - 1 - reduction, -alpha - 1, -alpha);
 
             if (score > alpha && score < beta) {
                 score = -alpha_beta(state, &new_position, depth - 1, -beta, -alpha);
@@ -329,15 +334,17 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
             best_move = move;
             best_move_valid = true;
 
-            for (int next_ply = state->search_ply + 1; next_ply < state->pv_table[state->search_ply + 1].size; next_ply++) {
-                state->pv_table[state->search_ply].moves[next_ply] = state->pv_table[state->search_ply + 1].moves[next_ply];
+            for (int next_ply = state->search_ply + 1; next_ply < state->pv_table[state->search_ply + 1].size; next_ply
+                 ++) {
+                state->pv_table[state->search_ply].moves[next_ply] = state->pv_table[state->search_ply + 1].moves[
+                    next_ply];
             }
 
             state->pv_table[state->search_ply].size = state->pv_table[state->search_ply + 1].size;
 
             if (score >= beta) {
                 PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, move.from, move.to);
-                tt_set(state, position, depth, beta, ENTRY_TYPE_BETA, best_move_packed);
+                tt_set(state->ctx, position, depth, beta, ENTRY_TYPE_BETA, best_move_packed);
 
                 if (bb_is_empty(move.captures)) {
                     state->killer_moves[1][state->search_ply] = state->killer_moves[0][state->search_ply];
@@ -345,21 +352,21 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
                     // Taken from https://www.chessprogramming.org/History_Heuristic
                     int clampedBonus = depth * depth;
                     state->history[position->side_to_move][move.from][move.to]
-                        += clampedBonus - state->history[position->side_to_move][move.from][move.to] * clampedBonus / MAX_HISTORY;
+                            += clampedBonus - state->history[position->side_to_move][move.from][move.to] * clampedBonus
+                            / MAX_HISTORY;
                 }
 
 
                 return beta;
             }
-
         }
     }
 
     if (best_move_valid) {
         PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);
-        tt_set(state, position, depth, alpha, tt_entry_type, best_move_packed);
+        tt_set(state->ctx, position, depth, alpha, tt_entry_type, best_move_packed);
     } else {
-        tt_set(state, position, depth, alpha, tt_entry_type, NULL_PACKED_MOVE);
+        tt_set(state->ctx, position, depth, alpha, tt_entry_type, NULL_PACKED_MOVE);
     }
 
 

@@ -12,21 +12,21 @@ static uint64_t random_u64(void) {
     return next;
 }
 
-void position_init(State *state) {
+void position_init(Context *ctx) {
     for (Color color = COLOR_WHITE; color <= COLOR_BLACK; color++) {
         for (Piece piece = PIECE_SOLDIER; piece <= PIECE_KING; piece++) {
             for (Square square = SQ_A1; square <= SQ_H7; square++) {
-                state->zobrists.pieces[color][piece][square] = random_u64();
+                ctx->zobrists.pieces[color][piece][square] = random_u64();
             }
         }
     }
 
-    state->zobrists.side_to_move = random_u64();
-    state->zobrists.can_create_general = random_u64();
-    state->zobrists.can_create_king = random_u64();
+    ctx->zobrists.side_to_move = random_u64();
+    ctx->zobrists.can_create_general = random_u64();
+    ctx->zobrists.can_create_king = random_u64();
 }
 
-uint64_t position_hash(State *state, const Position *position) {
+uint64_t position_hash(Context *ctx, const Position *position) {
     uint64_t hash = 0ULL;
 
     for (Color color = COLOR_WHITE; color <= COLOR_BLACK; color++) {
@@ -34,37 +34,37 @@ uint64_t position_hash(State *state, const Position *position) {
             Bitboard pieces_it = position->pieces[color][piece] & BB_USED;
             while (pieces_it) {
                 Square square = bb_it_next(&pieces_it);
-                hash ^= state->zobrists.pieces[color][piece][square];
+                hash ^= ctx->zobrists.pieces[color][piece][square];
             }
         }
     }
 
     if (position->side_to_move == COLOR_BLACK) {
-        hash ^= state->zobrists.side_to_move;
+        hash ^= ctx->zobrists.side_to_move;
     }
 
     if (position->can_create_general) {
-        hash ^= state->zobrists.can_create_general;
+        hash ^= ctx->zobrists.can_create_general;
     }
 
     if (position->can_create_king) {
-        hash ^= state->zobrists.can_create_king;
+        hash ^= ctx->zobrists.can_create_king;
     }
 
     return hash;
 }
 
-Position make_move(State *state, Position *pos, Move move) {
+Position make_move(Context *ctx, Position *pos, Move move) {
     Color color = pos->side_to_move;
     Position new_pos = *pos;
 
     if (new_pos.can_create_king) {
         new_pos.can_create_king = false;
-        new_pos.hash ^= state->zobrists.can_create_king;
+        new_pos.hash ^= ctx->zobrists.can_create_king;
     }
     if (new_pos.can_create_general) {
         new_pos.can_create_general = false;
-        new_pos.hash ^= state->zobrists.can_create_general;
+        new_pos.hash ^= ctx->zobrists.can_create_general;
     }
 
     Bitboard from_mask = bb_from_sq(move.from);
@@ -74,33 +74,33 @@ Position make_move(State *state, Position *pos, Move move) {
     if (new_pos.pieces[color][PIECE_SOLDIER] & from_mask) {
         // Remove soldier from old square
         new_pos.pieces[color][PIECE_SOLDIER] ^= from_mask;
-        new_pos.hash ^= state->zobrists.pieces[color][PIECE_SOLDIER][move.from];
+        new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_SOLDIER][move.from];
 
         // Handle stacking
         if (new_pos.pieces[color][PIECE_SOLDIER] & to_mask) {
             new_pos.pieces[color][PIECE_SOLDIER] ^= to_mask;
             new_pos.pieces[color][PIECE_GENERAL] |= to_mask;
-            new_pos.hash ^= state->zobrists.pieces[color][PIECE_SOLDIER][move.to];
-            new_pos.hash ^= state->zobrists.pieces[color][PIECE_GENERAL][move.to];
+            new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_SOLDIER][move.to];
+            new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_GENERAL][move.to];
         } else if (new_pos.pieces[color][PIECE_GENERAL] & to_mask) {
             new_pos.pieces[color][PIECE_GENERAL] ^= to_mask;
             new_pos.pieces[color][PIECE_KING] |= to_mask;
-            new_pos.hash ^= state->zobrists.pieces[color][PIECE_GENERAL][move.to];
-            new_pos.hash ^= state->zobrists.pieces[color][PIECE_KING][move.to];
+            new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_GENERAL][move.to];
+            new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_KING][move.to];
         } else {
             new_pos.pieces[color][PIECE_SOLDIER] |= to_mask;
-            new_pos.hash ^= state->zobrists.pieces[color][PIECE_SOLDIER][move.to];
+            new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_SOLDIER][move.to];
         }
     } else if (new_pos.pieces[color][PIECE_GENERAL] & from_mask) {
         new_pos.pieces[color][PIECE_GENERAL] ^= from_mask;
         new_pos.pieces[color][PIECE_GENERAL] |= to_mask;
-        new_pos.hash ^= state->zobrists.pieces[color][PIECE_GENERAL][move.from];
-        new_pos.hash ^= state->zobrists.pieces[color][PIECE_GENERAL][move.to];
+        new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_GENERAL][move.from];
+        new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_GENERAL][move.to];
     } else if (new_pos.pieces[color][PIECE_KING] & from_mask) {
         new_pos.pieces[color][PIECE_KING] ^= from_mask;
         new_pos.pieces[color][PIECE_KING] |= to_mask;
-        new_pos.hash ^= state->zobrists.pieces[color][PIECE_KING][move.from];
-        new_pos.hash ^= state->zobrists.pieces[color][PIECE_KING][move.to];
+        new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_KING][move.from];
+        new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_KING][move.to];
     } else {
         assert(false && "Impossible move");
     }
@@ -110,7 +110,7 @@ Position make_move(State *state, Position *pos, Move move) {
             Bitboard captured_it = new_pos.pieces[1 - color][piece] & captured_mask;
             while (captured_it) {
                 Square square = bb_it_next(&captured_it);
-                new_pos.hash ^= state->zobrists.pieces[1 - color][piece][square];
+                new_pos.hash ^= ctx->zobrists.pieces[1 - color][piece][square];
             }
 
             new_pos.pieces[1 - color][piece] &= ~captured_mask;
@@ -118,12 +118,12 @@ Position make_move(State *state, Position *pos, Move move) {
             if (piece == PIECE_GENERAL) {
                 if (!new_pos.can_create_general) {
                     new_pos.can_create_general = true;
-                    new_pos.hash ^= state->zobrists.can_create_general;
+                    new_pos.hash ^= ctx->zobrists.can_create_general;
                 }
             } else if (piece == PIECE_KING) {
                 if (!new_pos.can_create_king) {
                     new_pos.can_create_king = true;
-                    new_pos.hash ^= state->zobrists.can_create_king;
+                    new_pos.hash ^= ctx->zobrists.can_create_king;
                 }
             }
         }
@@ -131,7 +131,7 @@ Position make_move(State *state, Position *pos, Move move) {
 
     new_pos.ply++;
     new_pos.side_to_move = 1 - new_pos.side_to_move;
-    new_pos.hash ^= state->zobrists.side_to_move;
+    new_pos.hash ^= ctx->zobrists.side_to_move;
 
     if (new_pos.ply > 10) {
         if (bb_is_empty(move.captures)) {
