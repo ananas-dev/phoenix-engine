@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "collections.h"
 #include "eval.h"
 #include "movegen.h"
 #include "position.h"
@@ -37,16 +38,20 @@ State *new_game(Context *ctx, State *state) {
     }
 
     state->ctx = ctx;
+    list_clear(&state->game_history);
 
     return state;
 }
 
-MoveWithMateInfo act(State* state, const char *position, double time_remaining) {
+MoveWithMateInfo act(State* state, const char *position, double time_remaining, bool irreversible) {
     (void) time_remaining;
-    Position pos = position_from_fen(position);
+    Position pos = position_from_fen(state->ctx, position);
 
-    // Freeze this position to a zero score to avoid repetitions
-    // tt_freeze(state, &pos);
+    if (irreversible) {
+        list_clear(&state->game_history);
+    }
+
+    list_push(&state->game_history, pos.hash);
 
     if (state->ctx->debug) {
         position_print(&pos);

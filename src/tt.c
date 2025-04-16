@@ -23,19 +23,6 @@ void tt_set(Context *ctx, Position *position, uint8_t depth, int val, TTEntryTyp
     };
 }
 
-// Hacky repetition checker
-void tt_freeze(Context *ctx, Position *position) {
-    TTEntry *entry = &ctx->tt[position->hash & (ctx->tt_size - 1)];
-
-    *entry = (TTEntry) {
-        .hash = position->hash,
-        .depth = 255,
-        .val = 0,
-        .type = ENTRY_TYPE_EXACT,
-        .best_move = NULL_PACKED_MOVE,
-    };
-}
-
 int tt_get(Context *ctx, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move) {
     TTEntry *entry = &ctx->tt[position->hash & (ctx->tt_size - 1)];
 

@@ -99,7 +99,7 @@ class IAAgent(Agent):
         self.lib = ctypes.CDLL(path)
 
         # Act function
-        self.lib.act.argtypes = [StatePtr, ctypes.c_char_p, ctypes.c_double]
+        self.lib.act.argtypes = [StatePtr, ctypes.c_char_p, ctypes.c_double, ctypes.c_bool]
         self.lib.act.restype = Move
 
         # # Load position function
@@ -141,7 +141,9 @@ class IAAgent(Agent):
 
         fen = state_to_fen(state)
 
-        move = self.lib.act(self.__state, fen.encode("utf-8"), remaining_time)
+        is_irreversible = len(state.history_boring_turn_hash) == 0
+
+        move = self.lib.act(self.__state, fen.encode("utf-8"), remaining_time, is_irreversible)
 
         src_file = move.src & 7
         src_rank = move.src >> 3

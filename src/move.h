@@ -10,7 +10,7 @@ typedef struct {
 
 typedef struct {
     int size;
-    Move moves[128];
+    Move elems[128];
 } MoveList;
 
 typedef struct {

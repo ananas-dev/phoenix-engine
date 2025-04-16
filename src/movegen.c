@@ -1,6 +1,6 @@
 #include "movegen.h"
+#include "collections.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -233,10 +233,10 @@ static inline void insert_sequence(Move sequence, uint8_t value, MoveList *captu
     if (capture_info->max_value == 0 || value > capture_info->max_value) {
         capture_info->max_value = value;
         capture_list->size = 1;
-        capture_list->moves[0] = sequence;
+        capture_list->elems[0] = sequence;
     } else if (value == capture_info->max_value) {
         for (int i = 0; i < capture_list->size; i++) {
-            Move other_sequence = capture_list->moves[i];
+            Move other_sequence = capture_list->elems[i];
 
             if (sequence.from == other_sequence.from && sequence.to == other_sequence.to && sequence.captures ==
                 other_sequence.captures) {
@@ -244,7 +244,7 @@ static inline void insert_sequence(Move sequence, uint8_t value, MoveList *captu
             }
         }
 
-        capture_list->moves[capture_list->size++] = sequence;
+        list_push(capture_list, sequence);
     }
 }
 
@@ -421,17 +421,18 @@ void append_stacks(Context *ctx, Position *pos, MoveList *move_list, Bitboard st
 
         while (stacks_it) {
             Square to = bb_it_next(&stacks_it);
-            move_list->moves[move_list->size++] = (Move){
+            Move move = {
                 .from = from,
                 .to = to,
                 .captures = BB_EMPTY,
             };
+            list_push(move_list, move);
         }
     }
 }
 
 void legal_moves(Context *ctx, Position *pos, MoveList *move_list) {
-    move_list->size = 0;
+    list_clear(move_list);
 
     Color color = pos->side_to_move;
 
@@ -524,11 +525,12 @@ void legal_moves(Context *ctx, Position *pos, MoveList *move_list) {
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list->moves[move_list->size++] = (Move){
+            Move move = {
                 .from = from,
                 .to = to,
                 .captures = BB_EMPTY,
             };
+            list_push(move_list, move);
         }
     }
 
@@ -539,11 +541,12 @@ void legal_moves(Context *ctx, Position *pos, MoveList *move_list) {
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list->moves[move_list->size++] = (Move){
+            Move move = {
                 .from = from,
                 .to = to,
                 .captures = BB_EMPTY,
             };
+            list_push(move_list, move);
         }
     }
 
@@ -554,11 +557,12 @@ void legal_moves(Context *ctx, Position *pos, MoveList *move_list) {
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list->moves[move_list->size++] = (Move){
+            Move move = {
                 .from = from,
                 .to = to,
                 .captures = BB_EMPTY,
             };
+            list_push(move_list, move);
         }
     }
 }
@@ -574,7 +578,7 @@ uint64_t perft_aux(Context *ctx, Position *position, int depth) {
     uint64_t num_nodes = 0;
 
     for (int i = 0; i < move_list.size; i++) {
-        Position new_position = make_move(ctx, position, move_list.moves[i]);
+        Position new_position = make_move(ctx, position, move_list.elems[i]);
         num_nodes += perft_aux(ctx, &new_position, depth - 1);
     }
 
@@ -596,11 +600,11 @@ uint64_t perft(Context *ctx, Position *position, int depth, bool debug) {
     char to[3];
 
     for (int i = 0; i < move_list.size; i++) {
-        Position new_position = make_move(ctx, position, move_list.moves[i]);
+        Position new_position = make_move(ctx, position, move_list.elems[i]);
 
         if (debug) {
-            sq_to_string(move_list.moves[i].from, from);
-            sq_to_string(move_list.moves[i].to, to);
+            sq_to_string(move_list.elems[i].from, from);
+            sq_to_string(move_list.elems[i].to, to);
         }
 
         uint64_t move_num_nodes = perft_aux(ctx, &new_position, depth - 1);

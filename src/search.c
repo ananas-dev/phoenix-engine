@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/time.h>
 
+#include "collections.h"
 #include "eval.h"
 #include "movegen.h"
 #include "position.h"
@@ -66,21 +67,21 @@ void sort_move_list(State *state, MoveList *move_list, Color side_to_move) {
     int weights[move_list->size];
 
     for (int i = 0; i < move_list->size; i++) {
-        weights[i] = weight_move(state, move_list->moves[i], side_to_move);
+        weights[i] = weight_move(state, move_list->elems[i], side_to_move);
     }
 
     for (int i = 1; i < move_list->size; i++) {
-        Move move = move_list->moves[i];
+        Move move = move_list->elems[i];
         int weight = weights[i];
         int j = i - 1;
 
         while (j >= 0 && weights[j] < weight) {
-            move_list->moves[j + 1] = move_list->moves[j];
+            move_list->elems[j + 1] = move_list->elems[j];
             weights[j + 1] = weights[j];
             j--;
         }
 
-        move_list->moves[j + 1] = move;
+        move_list->elems[j + 1] = move;
         weights[j + 1] = weight;
     }
 }
@@ -92,6 +93,20 @@ void update_clock(State *state) {
     if (elapsed >= state->max_time * 0.99) {
         state->time_over = true;
     }
+}
+
+bool is_repetition(State *state, Position *position) {
+    if (state->game_history.size == 0 || state->search_ply == 0) {
+        return false;
+    }
+
+    for (int i = state->game_history.size - 1; i >= 0; i -= 1) {
+        if (state->game_history.elems[i] == position->hash) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 int alpha_beta(State *state, Position *position, int depth, int alpha, int beta);
@@ -173,7 +188,7 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
     if (game_state == STATE_WIN) {
         return INF - state->search_ply;
     }
-    if (game_state == STATE_DRAW) {
+    if (game_state == STATE_DRAW || is_repetition(state, position)) {
         return 0;
     }
 
@@ -194,7 +209,7 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
     sort_move_list(state, &move_list, position->side_to_move);
 
     for (int i = 0; i < move_list.size; i++) {
-        Move move = move_list.moves[i];
+        Move move = move_list.elems[i];
         // Check for non capture moves
         if (bb_is_empty(move.captures)) {
             // Skip stack check in setup phase
@@ -239,7 +254,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     if (game_state == STATE_WIN) {
         return INF - state->search_ply;
     }
-    if (game_state == STATE_DRAW) {
+    if (game_state == STATE_DRAW || is_repetition(state, position)) {
         return 0;
     }
 
@@ -278,7 +293,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
 
         // Iterate over the move list to see if one is part of the PV
         for (int i = 0; i < move_list.size; i++) {
-            Move move = move_list.moves[i];
+            Move move = move_list.elems[i];
             Move pv_move = state->pv_table[0].moves[state->search_ply];
             if (pv_move.from == move.from && pv_move.to == move.to && pv_move.captures == move.captures) {
                 state->pv_sorting = true;
@@ -295,7 +310,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     TTEntryType tt_entry_type = ENTRY_TYPE_ALPHA;
 
     for (int i = 0; i < move_list.size; i++) {
-        Move move = move_list.moves[i];
+        Move move = move_list.elems[i];
         Position new_position = make_move(state->ctx, position, move);
 
         state->search_ply++;

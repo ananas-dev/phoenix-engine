@@ -13,9 +13,15 @@ typedef struct {
 } PVLine;
 
 typedef struct {
+    uint64_t elems[1024];
+    int size;
+} GameHistory;
+
+typedef struct {
     Context *ctx;
 
-    Position game_history[1024];
+    GameHistory game_history;
+
     // Search state
     int nodes_visited;
     struct timeval start_time;

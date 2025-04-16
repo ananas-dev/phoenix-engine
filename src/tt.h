@@ -21,6 +21,5 @@ typedef struct TTEntry {
 } TTEntry;
 
 void tt_init(Context *ctx, int size);
-void tt_freeze(Context *ctx, Position *position);
 void tt_set(Context *ctx, Position *position, uint8_t depth, int val, TTEntryType type, PackedMove best_move);
 int tt_get(Context *ctx, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move);

@@ -40,6 +40,6 @@ static inline int count_pieces(Position *pos, Piece piece_type) {
 }
 
 Position make_move(Context *ctx, Position *pos, Move move);
-Position position_from_fen(const char *fen_str);
+Position position_from_fen(Context *ctx, const char *fen_str);
 void position_print(Position *pos);
 

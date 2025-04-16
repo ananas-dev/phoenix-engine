@@ -145,7 +145,7 @@ Position make_move(Context *ctx, Position *pos, Move move) {
 }
 
 
-Position position_from_fen(const char *fen_str) {
+Position position_from_fen(Context *ctx, const char *fen_str) {
     char *fen = malloc((strlen(fen_str) + 1) * sizeof(char));
     strcpy(fen, fen_str);
 
@@ -236,6 +236,8 @@ Position position_from_fen(const char *fen_str) {
     } else {
         assert(false && "Invalid creation flag in FEN");
     }
+
+    position.hash = position_hash(ctx, &position);
 
     free(fen);
     return position;
