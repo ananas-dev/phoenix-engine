@@ -35,8 +35,10 @@ State *new_game(Context *ctx, State *state) {
         state = malloc(sizeof(State));
     }
 
-    state->ctx = ctx;
+    memset(ctx->tt, 0, ctx->tt_size * sizeof(TTEntry));
     list_clear(&state->game_history);
+
+    state->ctx = ctx;
 
     return state;
 }
@@ -55,18 +57,7 @@ MoveWithMateInfo act(State* state, const char *position, double time_remaining, 
         position_print(&pos);
     }
 
-    double allocated_time = 1.0;
-
-    // Basic time management
-    // if (time_remaining < 100.0) {
-    //     allocated_time = 5.0;
-    // } if (time_remaining < 30.0) {
-    //     allocated_time = 3.0;
-    // } else if (time_remaining < 10.0) {
-    //     allocated_time = 1.0;
-    // } else if (time_remaining < 3.0) {
-    //     allocated_time = 0.1;
-    // }
+    double allocated_time = time_remaining / 30;
 
     return search(state, &pos, allocated_time);
 }

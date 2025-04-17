@@ -131,12 +131,10 @@ class IAAgent(Agent):
 
     def new_game(self):
         self.__found_mate = False
-        print("new game")
         self.__state = self.lib.new_game(self.__ctx, self.__state)
 
     def act(self, state, remaining_time):
         if state.turn < 2:
-            print("New game")
             self.new_game()
 
         fen = state_to_fen(state)
@@ -166,7 +164,6 @@ class IAAgent(Agent):
 
     def act_random(self, state, remaining_time):
         if state.turn < 2:
-            print("New game")
             self.new_game()
 
         actions = state.actions()
