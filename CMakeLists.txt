@@ -5,7 +5,7 @@ set(CMAKE_C_STANDARD 11)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_C_FLAGS_RELEASE
-            "-O3 -ffast-math -march=native -mtune=native -mavx -mfma -flto -funroll-loops -fno-omit-frame-pointer -DNDEBUG"
+            "-O3 -march=native -mtune=native -mavx -mfma -flto -funroll-loops -fno-omit-frame-pointer -DNDEBUG"
     )
 endif()
 

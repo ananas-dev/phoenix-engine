@@ -8,7 +8,7 @@
 #define MAX_HISTORY 1000
 
 typedef struct {
-    Move moves[PV_TABLE_SIZE];
+    Move elems[PV_TABLE_SIZE];
     int size;
 } PVLine;
 

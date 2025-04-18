@@ -33,7 +33,7 @@ int weight_move(State *state, Move move, Color side_to_move) {
     }
 
     if (state->pv_sorting) {
-        Move pv_move = state->pv_table[0].moves[state->search_ply];
+        Move pv_move = state->pv_table[0].elems[state->search_ply];
         if (pv_move.from == move.from && pv_move.to == move.to && pv_move.captures == move.captures) {
             state->pv_sorting = false;
             return 42000;
@@ -141,6 +141,7 @@ MoveWithMateInfo search(State *state, Position *position, double max_time_second
             continue;
         }
 
+        state->tt_best_move_flag = FLAG_NULL;
         state->follow_pv = true;
 
         int score = alpha_beta(state, position, depth, alpha, beta);
@@ -153,7 +154,7 @@ MoveWithMateInfo search(State *state, Position *position, double max_time_second
             }
 
             for (int i = 0; i < state->pv_table[0].size; i++) {
-                move_print(state->pv_table[0].moves[i]);
+                move_print(state->pv_table[0].elems[i]);
                 printf(" ");
             }
 
@@ -161,12 +162,15 @@ MoveWithMateInfo search(State *state, Position *position, double max_time_second
         }
 
         if (state->pv_table[0].size > 0) {
-            best_move = state->pv_table[0].moves[0];
+            best_move = state->pv_table[0].elems[0];
         }
 
         if (score >= INF - MAX_PLY || score <= -INF + MAX_PLY) {
             found_mate = true;
-            break; // found a mate in search
+            if (score > 0) {
+                // Only break if winning
+                break;
+            }
         }
     }
 
@@ -293,7 +297,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
         // Iterate over the move list to see if one is part of the PV
         for (int i = 0; i < move_list.size; i++) {
             Move move = move_list.elems[i];
-            Move pv_move = state->pv_table[0].moves[state->search_ply];
+            Move pv_move = state->pv_table[0].elems[state->search_ply];
             if (pv_move.from == move.from && pv_move.to == move.to && pv_move.captures == move.captures) {
                 state->pv_sorting = true;
                 state->follow_pv = true;
@@ -343,14 +347,14 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
         if (score > alpha) {
             tt_entry_type = ENTRY_TYPE_EXACT;
             alpha = score;
-            state->pv_table[state->search_ply].moves[state->search_ply] = move;
+            state->pv_table[state->search_ply].elems[state->search_ply] = move;
 
             best_move = move;
             best_move_valid = true;
 
             for (int next_ply = state->search_ply + 1; next_ply < state->pv_table[state->search_ply + 1].size; next_ply
                  ++) {
-                state->pv_table[state->search_ply].moves[next_ply] = state->pv_table[state->search_ply + 1].moves[
+                state->pv_table[state->search_ply].elems[next_ply] = state->pv_table[state->search_ply + 1].elems[
                     next_ply];
             }
 

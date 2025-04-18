@@ -17,7 +17,12 @@ Context* init_context(bool debug) {
     movegen_init(ctx);
     position_init(ctx);
     eval_init(ctx);
-    tt_init(ctx, 16777216);
+    tt_init(ctx, 67108864);
+
+    if (debug) {
+        printf("Allocated %.1lfmb for TT\n", (double)ctx->tt_size * (sizeof(TTEntry)) / (1024 * 1024));
+    }
+
 
     return ctx;
 }
@@ -35,9 +40,9 @@ State *new_game(Context *ctx, State *state) {
         state = malloc(sizeof(State));
     }
 
+    // Full reset
     memset(ctx->tt, 0, ctx->tt_size * sizeof(TTEntry));
-    list_clear(&state->game_history);
-
+    memset(state, 0, sizeof(State));
     state->ctx = ctx;
 
     return state;
@@ -47,7 +52,7 @@ MoveWithMateInfo act(State* state, const char *position, double time_remaining, 
     (void) time_remaining;
     Position pos = position_from_fen(state->ctx, position);
 
-    if (irreversible) {
+    if (irreversible || state->game_history.size >= 1024) {
         list_clear(&state->game_history);
     }
 
@@ -57,9 +62,16 @@ MoveWithMateInfo act(State* state, const char *position, double time_remaining, 
         position_print(&pos);
     }
 
-    double allocated_time = time_remaining / 30;
+    // double allocated_time = time_remaining / 30;
+    double allocated_time = 0.1;
 
-    return search(state, &pos, allocated_time);
+    MoveWithMateInfo search_result = search(state, &pos, allocated_time);
+
+    if (state->ctx->debug) {
+        printf("Transposition Table fill rate: %.2f%%\n", tt_fill_rate(state->ctx));
+    }
+
+    return search_result;
 }
 
 void destroy_state(State *state) {
@@ -71,9 +83,9 @@ void destroy_context(Context *ctx) {
     free(ctx);
 }
 
-double sigmoid(double s, double k) {
-    return 1.0 / (1.0 + exp(-s * log(10.0) * k / 400.0));
-}
+// double sigmoid(double s, double k) {
+//     return 1.0 / (1.0 + exp(-s * log(10.0) * k / 400.0));
+// }
 
 // void load_position_db(State *state, const char *file_name) {
 //     FILE *file = fopen(file_name, "r");

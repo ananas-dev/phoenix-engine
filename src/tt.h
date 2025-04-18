@@ -13,13 +13,14 @@ typedef enum {
 } TTEntryType;
 
 typedef struct TTEntry {
-    Bitboard hash;
-    TTEntryType type;
-    int val;
+    uint64_t hash;
+    int32_t val;
     PackedMove best_move;
+    uint8_t type;
     uint8_t depth;
 } TTEntry;
 
 void tt_init(Context *ctx, int size);
 void tt_set(Context *ctx, Position *position, uint8_t depth, int val, TTEntryType type, PackedMove best_move);
 int tt_get(Context *ctx, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move);
+double tt_fill_rate(Context *ctx);

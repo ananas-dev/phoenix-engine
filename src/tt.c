@@ -1,12 +1,20 @@
 #include "tt.h"
 #include <stdlib.h>
 #include <assert.h>
+#include <stdio.h>
+#include <string.h>
 
 void tt_init(Context *ctx, int size) {
-    TTEntry *tt = malloc(sizeof(TTEntry) * size);
-    assert(tt != NULL && "Could not init transposition table");
+    TTEntry *tt;
+
+    int attempt = size;
+    do {
+        tt = malloc(sizeof(TTEntry) * attempt);
+        if (!tt) attempt /= 2;
+    } while (tt == NULL && attempt > 0);
+
     ctx->tt = tt;
-    ctx->tt_size = size;
+    ctx->tt_size = attempt;
 }
 
 void tt_set(Context *ctx, Position *position, uint8_t depth, int val, TTEntryType type, PackedMove best_move) {
@@ -45,6 +53,19 @@ int tt_get(Context *ctx, Position *position, uint8_t depth, int alpha, int beta,
     }
 
     return TT_MISS;
+}
+
+double tt_fill_rate(Context *ctx) {
+    uint32_t filled_entries = 0;
+    uint32_t total_entries = ctx->tt_size;
+
+    for (size_t i = 0; i < total_entries; i++) {
+        if (ctx->tt[i].hash != 0) {
+            filled_entries++;
+        }
+    }
+
+    return ((double)filled_entries / (double)total_entries) * 100.0f;
 }
 
 void tt_free(TTEntry *tt) {

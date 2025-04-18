@@ -41,5 +41,6 @@ static inline int count_pieces(Position *pos, Piece piece_type) {
 
 Position make_move(Context *ctx, Position *pos, Move move);
 Position position_from_fen(Context *ctx, const char *fen_str);
+uint64_t position_hash(Context *ctx, const Position *position);
 void position_print(Position *pos);
 

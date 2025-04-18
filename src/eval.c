@@ -72,15 +72,27 @@ int eval(Context *ctx, Position *position) {
     int num_black_general = bb_popcnt(position->pieces[COLOR_BLACK][PIECE_GENERAL]);
     int num_black_king = bb_popcnt(position->pieces[COLOR_BLACK][PIECE_KING]);
 
-    // Drawn endgames
+    bool both_kings_present = num_white_king > 0 && num_black_king > 0;
+
+    // K(S) vs K(S) draw
     if (
         num_white_soldier <= 1 &&
         num_black_soldier <= 1 &&
         num_white_general == 0 &&
         num_black_general == 0 &&
-        num_black_king > 0 &&
-        num_white_king > 0
+        both_kings_present
     ) {
+        return 0;
+    }
+
+    // KG vs KS draw
+    bool one_vs_one_soldier_general =
+            (num_white_soldier == 1 && num_black_soldier == 0 &&
+             num_white_general == 0 && num_black_general == 1) ||
+            (num_white_soldier == 0 && num_black_soldier == 1 &&
+             num_white_general == 1 && num_black_general == 0);
+
+    if (one_vs_one_soldier_general && both_kings_present) {
         return 0;
     }
 
