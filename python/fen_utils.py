@@ -14,7 +14,7 @@ def fen_to_state(fen):
     """
     # Split the FEN string into components
     parts = fen.split()
-    board_fen, turn, current_player, creation_flags = parts
+    board_fen, turn, clock, current_player, creation_flags = parts
 
     # Determine board dimensions
     rows = board_fen.split("/")

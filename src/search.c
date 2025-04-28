@@ -183,6 +183,8 @@ MoveWithMateInfo search(State *state, Position *position, double max_time_second
 }
 
 int quiesce(State *state, Position *position, int alpha, int beta) {
+    Color turn = position->side_to_move;
+
     if ((state->nodes_visited & 2047) == 0) {
         update_clock(state);
     }
@@ -191,11 +193,14 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
     if (game_state == STATE_WIN) {
         return INF - state->search_ply;
     }
+    if (game_state == STATE_LOSS) {
+        return -(INF - state->search_ply);
+    }
     if (game_state == STATE_DRAW || is_repetition(state, position)) {
         return 0;
     }
 
-    int stand_pat = eval(state->ctx, position);
+    int stand_pat = network_evaluate(state->ctx->net, &position->accumulators[turn], &position->accumulators[1 - turn]);
     if (stand_pat >= beta) {
         return beta;
     }
@@ -257,6 +262,9 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     if (game_state == STATE_WIN) {
         return INF - state->search_ply;
     }
+    if (game_state == STATE_LOSS) {
+        return -(INF - state->search_ply);
+    }
     if (game_state == STATE_DRAW || is_repetition(state, position)) {
         return 0;
     }
@@ -279,7 +287,8 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     if (depth == 0) {
         // Only search at even depth during the setup
         if (position->ply < 10) {
-            return eval(state->ctx, position);
+            return network_evaluate(state->ctx->net, &position->accumulators[position->side_to_move],
+                                    &position->accumulators[1 - position->side_to_move]);
         }
 
         return quiesce(state, position, alpha, beta);
@@ -324,12 +333,14 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
             score = -alpha_beta(state, &new_position, depth - 1, -beta, -alpha);
         } else {
             int reduction = (
-                i >= 4 &&
-                depth >= 3 &&
-                bb_popcnt(move.captures) == 0 &&
-                !position->can_create_general &&
-                !position->can_create_king
-            ) ? 1 : 0;
+                                i >= 4 &&
+                                depth >= 3 &&
+                                bb_popcnt(move.captures) == 0 &&
+                                !position->can_create_general &&
+                                !position->can_create_king
+                            )
+                                ? 1
+                                : 0;
 
             score = -alpha_beta(state, &new_position, depth - 1 - reduction, -alpha - 1, -alpha);
 

@@ -5,6 +5,7 @@
 #include "bitboard.h"
 
 struct TTEntry;
+struct Network;
 
 typedef struct {
     Bitboard *ptr;
@@ -65,12 +66,17 @@ typedef enum {
 //     uint64_t size;
 // } PositionDB;
 
+typedef struct {
+    int size;
+} WorkerThreadList;
 
 typedef struct {
     bool debug;
 
     // Eval
     int weights[W_COUNT];
+
+    struct Network* net;
 
     Bitboard square_structure_table[NUM_FILE - 1][NUM_RANK - 1];
     int distance[NUM_SQUARE][NUM_SQUARE];
@@ -87,6 +93,5 @@ typedef struct {
 
     struct TTEntry *tt;
     int tt_size;
-
 } Context;
 

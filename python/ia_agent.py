@@ -115,7 +115,7 @@ class IAAgent(Agent):
         self.lib.init_context.restype = ContextPtr
 
         # Set weight function
-        self.lib.set_weights.argtypes = [ContextPtr, ctypes.POINTER(ctypes.c_int), ctypes.c_int]
+        self.lib.load_network_from_bytes.argtypes = [ContextPtr, ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t]
 
         # Destroy function
         self.lib.destroy_context.argtypes = [ContextPtr]
@@ -128,6 +128,14 @@ class IAAgent(Agent):
         self.__found_mate = False
         self.__state = None
         self.__ctx = self.lib.init_context(debug)
+
+        with open("quantised.bin", "rb") as f:
+            data = f.read()
+
+        ByteArray = ctypes.c_uint8 * len(data)
+        c_array = ByteArray.from_buffer_copy(data)
+
+        self.lib.load_network_from_bytes(self.__ctx, c_array, len(data))
 
     def new_game(self):
         self.__found_mate = False
@@ -182,10 +190,10 @@ class IAAgent(Agent):
     # def load_position_db(self, file_name):
     #     return self.lib.load_position_db(self.state, file_name.encode("utf-8"))
 
-    def set_weights(self, weights: list[int]):
-        Weights = ctypes.c_int * len(weights)
-        arr = Weights(*weights)
-        self.lib.set_weights(self.__ctx, arr, len(weights))
+    # def set_weights(self, weights: list[int]):
+    #     Weights = ctypes.c_int * len(weights)
+    #     arr = Weights(*weights)
+    #     self.lib.set_weights(self.__ctx, arr, len(weights))
 
     def __del__(self):
         if self.__state is not None:

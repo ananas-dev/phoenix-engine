@@ -8,7 +8,7 @@ typedef enum {
     SQ_A5, SQ_B5, SQ_C5, SQ_D5, SQ_E5, SQ_F5, SQ_G5, SQ_H5,
     SQ_A6, SQ_B6, SQ_C6, SQ_D6, SQ_E6, SQ_F6, SQ_G6, SQ_H6,
     SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
-    NUM_SQUARE,
+    NUM_SQUARE, INVALID_SQUARE,
 } Square;
 
 typedef enum {
@@ -61,6 +61,7 @@ typedef enum {
 
 typedef enum {
     STATE_ONGOING,
+    STATE_LOSS,
     STATE_WIN,
     STATE_DRAW,
 } GameState;

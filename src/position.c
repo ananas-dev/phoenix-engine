@@ -54,9 +54,31 @@ uint64_t position_hash(Context *ctx, const Position *position) {
     return hash;
 }
 
+void position_accumulators(Context *ctx, Position *position) {
+    Accumulator white_acc = accumulator_new(ctx->net);
+    Accumulator black_acc = accumulator_new(ctx->net);
+
+    for (Color color = COLOR_WHITE; color <= COLOR_BLACK; color++) {
+        for (Piece piece = PIECE_SOLDIER; piece <= PIECE_KING; piece++) {
+            Bitboard pieces_it = position->pieces[color][piece] & BB_USED;
+            while (pieces_it) {
+                Square square = bb_it_next(&pieces_it);
+                accumulator_add_feature(&white_acc, ctx->net, get_feature_index_white(color, piece, square));
+                accumulator_add_feature(&black_acc, ctx->net, get_feature_index_black(color, piece, square));
+            }
+        }
+    }
+
+    position->accumulators[COLOR_WHITE] = white_acc;
+    position->accumulators[COLOR_BLACK] = white_acc;
+}
+
 Position make_move(Context *ctx, Position *pos, Move move) {
     Color color = pos->side_to_move;
     Position new_pos = *pos;
+
+    new_pos.accumulators[COLOR_WHITE] = pos->accumulators[COLOR_WHITE];
+    new_pos.accumulators[COLOR_BLACK] = pos->accumulators[COLOR_BLACK];
 
     if (new_pos.can_create_king) {
         new_pos.can_create_king = false;
@@ -76,31 +98,79 @@ Position make_move(Context *ctx, Position *pos, Move move) {
         new_pos.pieces[color][PIECE_SOLDIER] ^= from_mask;
         new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_SOLDIER][move.from];
 
+        accumulator_remove_feature(&new_pos.accumulators[COLOR_WHITE], ctx->net,
+                                   get_feature_index_white(color, PIECE_SOLDIER, move.from));
+        accumulator_remove_feature(&new_pos.accumulators[COLOR_BLACK], ctx->net,
+                                   get_feature_index_black(color, PIECE_SOLDIER, move.from));
+
         // Handle stacking
         if (new_pos.pieces[color][PIECE_SOLDIER] & to_mask) {
             new_pos.pieces[color][PIECE_SOLDIER] ^= to_mask;
             new_pos.pieces[color][PIECE_GENERAL] |= to_mask;
             new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_SOLDIER][move.to];
             new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_GENERAL][move.to];
+
+            accumulator_remove_feature(&new_pos.accumulators[COLOR_WHITE], ctx->net,
+                                       get_feature_index_white(color, PIECE_SOLDIER, move.to));
+            accumulator_remove_feature(&new_pos.accumulators[COLOR_BLACK], ctx->net,
+                                       get_feature_index_black(color, PIECE_SOLDIER, move.to));
+
+            accumulator_add_feature(&new_pos.accumulators[COLOR_WHITE], ctx->net,
+                                    get_feature_index_white(color, PIECE_GENERAL, move.to));
+            accumulator_add_feature(&new_pos.accumulators[COLOR_BLACK], ctx->net,
+                                    get_feature_index_black(color, PIECE_GENERAL, move.to));
         } else if (new_pos.pieces[color][PIECE_GENERAL] & to_mask) {
             new_pos.pieces[color][PIECE_GENERAL] ^= to_mask;
             new_pos.pieces[color][PIECE_KING] |= to_mask;
             new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_GENERAL][move.to];
             new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_KING][move.to];
+
+            accumulator_remove_feature(&new_pos.accumulators[COLOR_WHITE], ctx->net,
+                                       get_feature_index_white(color, PIECE_GENERAL, move.to));
+            accumulator_remove_feature(&new_pos.accumulators[COLOR_BLACK], ctx->net,
+                                       get_feature_index_black(color, PIECE_GENERAL, move.to));
+
+            accumulator_add_feature(&new_pos.accumulators[COLOR_WHITE], ctx->net,
+                                    get_feature_index_white(color, PIECE_KING, move.to));
+            accumulator_add_feature(&new_pos.accumulators[COLOR_BLACK], ctx->net,
+                                    get_feature_index_black(color, PIECE_KING, move.to));
         } else {
             new_pos.pieces[color][PIECE_SOLDIER] |= to_mask;
             new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_SOLDIER][move.to];
+
+            accumulator_add_feature(&new_pos.accumulators[COLOR_WHITE], ctx->net,
+                                    get_feature_index_white(color, PIECE_SOLDIER, move.to));
+            accumulator_add_feature(&new_pos.accumulators[COLOR_BLACK], ctx->net,
+                                    get_feature_index_black(color, PIECE_SOLDIER, move.to));
         }
     } else if (new_pos.pieces[color][PIECE_GENERAL] & from_mask) {
         new_pos.pieces[color][PIECE_GENERAL] ^= from_mask;
         new_pos.pieces[color][PIECE_GENERAL] |= to_mask;
         new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_GENERAL][move.from];
         new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_GENERAL][move.to];
+
+        accumulator_remove_feature(&new_pos.accumulators[COLOR_WHITE], ctx->net,
+                                   get_feature_index_white(color, PIECE_GENERAL, move.from));
+        accumulator_remove_feature(&new_pos.accumulators[COLOR_BLACK], ctx->net,
+                                   get_feature_index_black(color, PIECE_GENERAL, move.from));
+        accumulator_add_feature(&new_pos.accumulators[COLOR_WHITE], ctx->net,
+                                get_feature_index_white(color, PIECE_GENERAL, move.to));
+        accumulator_add_feature(&new_pos.accumulators[COLOR_BLACK], ctx->net,
+                                get_feature_index_black(color, PIECE_GENERAL, move.to));
     } else if (new_pos.pieces[color][PIECE_KING] & from_mask) {
         new_pos.pieces[color][PIECE_KING] ^= from_mask;
         new_pos.pieces[color][PIECE_KING] |= to_mask;
         new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_KING][move.from];
         new_pos.hash ^= ctx->zobrists.pieces[color][PIECE_KING][move.to];
+
+        accumulator_remove_feature(&new_pos.accumulators[COLOR_WHITE], ctx->net,
+                                   get_feature_index_white(color, PIECE_KING, move.from));
+        accumulator_remove_feature(&new_pos.accumulators[COLOR_BLACK], ctx->net,
+                                   get_feature_index_black(color, PIECE_KING, move.from));
+        accumulator_add_feature(&new_pos.accumulators[COLOR_WHITE], ctx->net,
+                                get_feature_index_white(color, PIECE_KING, move.to));
+        accumulator_add_feature(&new_pos.accumulators[COLOR_BLACK], ctx->net,
+                                get_feature_index_black(color, PIECE_KING, move.to));
     } else {
         assert(false && "Impossible move");
     }
@@ -111,6 +181,11 @@ Position make_move(Context *ctx, Position *pos, Move move) {
             while (captured_it) {
                 Square square = bb_it_next(&captured_it);
                 new_pos.hash ^= ctx->zobrists.pieces[1 - color][piece][square];
+
+                accumulator_remove_feature(&new_pos.accumulators[COLOR_WHITE], ctx->net,
+                                           get_feature_index_white(1 - color, piece, square));
+                accumulator_remove_feature(&new_pos.accumulators[COLOR_BLACK], ctx->net,
+                                           get_feature_index_black(1 - color, piece, square));
             }
 
             new_pos.pieces[1 - color][piece] &= ~captured_mask;
@@ -146,6 +221,13 @@ Position make_move(Context *ctx, Position *pos, Move move) {
 
 
 Position position_from_fen(Context *ctx, const char *fen_str) {
+    Position position = position_from_fen_no_hash(fen_str);
+    position.hash = position_hash(ctx, &position);
+    position_accumulators(ctx, &position);
+    return position;
+}
+
+Position position_from_fen_no_hash(const char *fen_str) {
     char *fen = malloc((strlen(fen_str) + 1) * sizeof(char));
     strcpy(fen, fen_str);
 
@@ -236,8 +318,6 @@ Position position_from_fen(Context *ctx, const char *fen_str) {
     } else {
         assert(false && "Invalid creation flag in FEN");
     }
-
-    position.hash = position_hash(ctx, &position);
 
     free(fen);
     return position;
