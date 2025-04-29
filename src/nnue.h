@@ -1,18 +1,21 @@
 #pragma once
 
-#include "context.h"
 #include <stdlib.h>
+#include <stdint.h>
+#include "core.h"
 
 #define HIDDEN_SIZE 128
 #define SCALE 400
 #define QA 255
 #define QB 64
 
+struct Context;
+
 typedef struct __attribute__((aligned(64))) {
     int16_t vals[HIDDEN_SIZE];
 } Accumulator;
 
-typedef struct Network {
+typedef struct __attribute__((aligned(64))) {
     Accumulator feature_weights[336];
     Accumulator feature_bias;
     int16_t output_weights[2 * HIDDEN_SIZE];
@@ -29,7 +32,7 @@ static inline int get_feature_index_black(Color color, Piece piece, Square squar
     return get_feature_index_white(1-color, piece, mirrored);
 }
 
-void load_network_from_bytes(Context *ctx, const uint8_t* data, size_t len);
+void load_network_from_bytes(struct Context *ctx, const uint8_t* data, size_t len);
 int32_t network_evaluate(const Network* net, const Accumulator* us, const Accumulator* them);
 Accumulator accumulator_new(const Network* net);
 void accumulator_add_feature(Accumulator* acc, const Network* net, size_t feature_idx);

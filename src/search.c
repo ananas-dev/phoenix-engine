@@ -200,7 +200,7 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
         return 0;
     }
 
-    int stand_pat = network_evaluate(state->ctx->net, &position->accumulators[turn], &position->accumulators[1 - turn]);
+    int stand_pat = network_evaluate(&state->ctx->net, &position->accumulators[turn], &position->accumulators[1 - turn]);
     if (stand_pat >= beta) {
         return beta;
     }
@@ -287,7 +287,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     if (depth == 0) {
         // Only search at even depth during the setup
         if (position->ply < 10) {
-            return network_evaluate(state->ctx->net, &position->accumulators[position->side_to_move],
+            return network_evaluate(&state->ctx->net, &position->accumulators[position->side_to_move],
                                     &position->accumulators[1 - position->side_to_move]);
         }
 

@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "core.h"
 #include "bitboard.h"
+#include "nnue.h"
 
 struct TTEntry;
 struct Network;
@@ -60,23 +61,13 @@ typedef enum {
     W_COUNT
 } Weight;
 
-// typedef struct {
-//     Position *positions;
-//     double *results;
-//     uint64_t size;
-// } PositionDB;
-
-typedef struct {
-    int size;
-} WorkerThreadList;
-
-typedef struct {
+typedef struct Context {
     bool debug;
+
+    Network net;
 
     // Eval
     int weights[W_COUNT];
-
-    struct Network* net;
 
     Bitboard square_structure_table[NUM_FILE - 1][NUM_RANK - 1];
     int distance[NUM_SQUARE][NUM_SQUARE];

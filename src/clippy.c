@@ -12,7 +12,7 @@
 #include "tt.h"
 
 Context* init_context(bool debug) {
-    Context* ctx = malloc(sizeof(Context));
+    Context* ctx = aligned_alloc(64, sizeof(Context));
     ctx->debug = debug;
     movegen_init(ctx);
     position_init(ctx);
@@ -63,7 +63,6 @@ MoveWithMateInfo act(State* state, const char *position, double time_remaining, 
     }
 
     double allocated_time = time_remaining / 30;
-    // double allocated_time = 0.1;
 
     MoveWithMateInfo search_result = search(state, &pos, allocated_time);
 
@@ -82,36 +81,3 @@ void destroy_context(Context *ctx) {
     free(ctx->tt);
     free(ctx);
 }
-
-#ifdef EMSCRIPTEN
-#include <emscripten.h>
-
-int main() {
-    return 0;
-}
-#endif
-
-
-// double sigmoid(double s, double k) {
-//     return 1.0 / (1.0 + exp(-s * log(10.0) * k / 400.0));
-// }
-
-// void load_position_db(State *state, const char *file_name) {
-// }
-//
-// double evaluation_error(State *state, double k) {
-//     double sum = 0.0;
-//     for (uint64_t i = 0; i < state->position_db.size; i++) {
-//         Position *position = &state->position_db.positions[i];
-//         double q_i = position->side_to_move == COLOR_WHITE
-//                      ? eval(state, position)
-//                      : -eval(state, position);
-//
-//         double error = state->position_db.results[i] - sigmoid(q_i, k);
-//         sum += error * error;
-//
-//     }
-//
-//     return sum / (double)state->position_db.size;
-// }
-

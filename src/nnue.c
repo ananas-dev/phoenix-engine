@@ -3,34 +3,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "context.h"
 
 static inline int32_t crelu(int16_t x) {
     int32_t xi = (int32_t)x;
     if (xi < 0) return 0;
     if (xi > QA) return QA;
     return xi;
-}
-
-// Cross-platform aligned allocation
-void* platform_aligned_alloc(size_t alignment, size_t size) {
-    void* ptr = NULL;
-#if defined(_WIN32) || defined(_WIN64)
-    // Windows implementation
-    ptr = _aligned_malloc(size, alignment);
-#else
-    // C11 implementation
-    ptr = aligned_alloc(alignment, size);
-#endif
-    return ptr;
-}
-
-// And similarly for freeing:
-void platform_aligned_free(void* ptr) {
-#if defined(_WIN32) || defined(_WIN64)
-    _aligned_free(ptr);
-#else
-    free(ptr);
-#endif
 }
 
 void load_network_from_bytes(Context *ctx, const uint8_t* data, size_t len) {
@@ -43,18 +22,16 @@ void load_network_from_bytes(Context *ctx, const uint8_t* data, size_t len) {
     }
 
     if (len != sizeof(Network)) {
-        fprintf(stderr, "NNUE size mismatch\n");
+        fprintf(stderr, "Error: NNUE size mismatch\n");
         abort();
     }
 
-    Network* net = platform_aligned_alloc(64, sizeof(Network));
-
-    if (!net) {
+    if (((uintptr_t)&ctx->net % 64) != 0) {
+        fprintf(stderr, "Error: Alignment mismatch\n");
         abort();
     }
 
-    memcpy(net, data, sizeof(Network));
-    ctx->net = net;
+    memcpy(&ctx->net, data, sizeof(Network));
 }
 
 int32_t network_evaluate(const Network* net, const Accumulator* us, const Accumulator* them) {
