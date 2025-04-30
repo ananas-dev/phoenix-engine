@@ -3,20 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "context.h"
 
 static inline int32_t crelu(int16_t x) {
-    int32_t xi = (int32_t)x;
-    if (xi < 0) return 0;
-    if (xi > QA) return QA;
-    return xi;
+    if (x < 0) return 0;
+    if (x > QA) return QA;
+    return x;
 }
 
-void load_network_from_bytes(Context *ctx, const uint8_t* data, size_t len) {
-    if (!ctx) {
-        abort();
-    }
-
+void load_network_from_bytes(Network *net, const uint8_t* data, size_t len) {
     if (!data) {
         abort();
     }
@@ -26,12 +20,12 @@ void load_network_from_bytes(Context *ctx, const uint8_t* data, size_t len) {
         abort();
     }
 
-    if (((uintptr_t)&ctx->net % 64) != 0) {
+    if (((uintptr_t)net % 64) != 0) {
         fprintf(stderr, "Error: Alignment mismatch\n");
         abort();
     }
 
-    memcpy(&ctx->net, data, sizeof(Network));
+    memcpy(net, data, sizeof(Network));
 }
 
 int32_t network_evaluate(const Network* net, const Accumulator* us, const Accumulator* them) {

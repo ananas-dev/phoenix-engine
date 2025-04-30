@@ -1,7 +1,8 @@
 #pragma once
 
-#include <sys/time.h>
 #include "position.h"
+#include "nnue.h"
+#include "tt.h"
 
 #define MAX_PLY 128
 #define PV_TABLE_SIZE 64
@@ -18,14 +19,18 @@ typedef struct {
 } GameHistory;
 
 typedef struct {
-    Context *ctx;
+    bool debug;
+
+    _Atomic(bool) stopped;
 
     GameHistory game_history;
+
+    Network net;
 
     // Search state
     int nodes_visited;
     struct timeval start_time;
-    double max_time;
+    int64_t max_time;
     bool time_over;
 
     // Move ordering state
@@ -45,5 +50,10 @@ typedef struct {
 
     // Current search depth
     int search_ply;
+
+    // Current position
+    Position position;
+
+    TT tt;
 } State;
 

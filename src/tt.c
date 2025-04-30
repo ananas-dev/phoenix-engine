@@ -1,24 +1,34 @@
 #include "tt.h"
 #include <stdlib.h>
-#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
-void tt_init(Context *ctx, int size) {
-    TTEntry *tt;
-
-    int attempt = size;
-    do {
-        tt = malloc(sizeof(TTEntry) * attempt);
-        if (!tt) attempt /= 2;
-    } while (tt == NULL && attempt > 0);
-
-    ctx->tt = tt;
-    ctx->tt_size = attempt;
+static size_t floor_power_of_two(size_t x) {
+    if (x == 0) return 0;
+    size_t power = 1;
+    while (power <= x) power <<= 1;
+    return power >> 1;
 }
 
-void tt_set(Context *ctx, Position *position, uint8_t depth, int val, TTEntryType type, PackedMove best_move) {
-    TTEntry *entry = &ctx->tt[position->hash & (ctx->tt_size - 1)];
+TT tt_new(int size_in_mb) {
+    size_t total_bytes = size_in_mb * 1024 * 1024;
+    size_t max_entries = total_bytes / sizeof(TTEntry);
+    size_t bucket_count = floor_power_of_two(max_entries);
+
+    TTEntry *entry = malloc(sizeof(TTEntry) * bucket_count);
+
+    if (!entry) {
+        exit(1);
+    }
+
+    return (TT) {
+        .entries = entry,
+        .size = bucket_count,
+    };
+}
+
+void tt_set(TT *tt, Position *position, uint8_t depth, int val, TTEntryType type, PackedMove best_move) {
+    TTEntry *entry = &tt->entries[position->hash & (tt->size - 1)];
 
     if ((position->hash == entry->hash) && (depth <= entry->depth)) return;
 
@@ -31,8 +41,8 @@ void tt_set(Context *ctx, Position *position, uint8_t depth, int val, TTEntryTyp
     };
 }
 
-int tt_get(Context *ctx, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move) {
-    TTEntry *entry = &ctx->tt[position->hash & (ctx->tt_size - 1)];
+int tt_get(TT *tt, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move) {
+    TTEntry *entry = &tt->entries[position->hash & (tt->size - 1)];
 
     if (position->hash == entry->hash) {
         *best_move = entry->best_move;
@@ -55,19 +65,19 @@ int tt_get(Context *ctx, Position *position, uint8_t depth, int alpha, int beta,
     return TT_MISS;
 }
 
-double tt_fill_rate(Context *ctx) {
-    uint32_t filled_entries = 0;
-    uint32_t total_entries = ctx->tt_size;
+// double tt_fill_rate(Context *ctx) {
+//     uint32_t filled_entries = 0;
+//     uint32_t total_entries = ctx->tt_size;
+//
+//     for (size_t i = 0; i < total_entries; i++) {
+//         if (ctx->tt[i].hash != 0) {
+//             filled_entries++;
+//         }
+//     }
+//
+//     return ((double)filled_entries / (double)total_entries) * 100.0f;
+// }
 
-    for (size_t i = 0; i < total_entries; i++) {
-        if (ctx->tt[i].hash != 0) {
-            filled_entries++;
-        }
-    }
-
-    return ((double)filled_entries / (double)total_entries) * 100.0f;
-}
-
-void tt_free(TTEntry *tt) {
-    free(tt);
+void tt_free(TT *tt) {
+    free(tt->entries);
 }

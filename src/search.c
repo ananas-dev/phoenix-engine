@@ -4,21 +4,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+#include <stdatomic.h>
 
-#include "eval.h"
 #include "movegen.h"
 #include "position.h"
 #include "tt.h"
 
 #define INF 100000
 
-double get_elapsed_time(State *state) {
+int64_t get_elapsed_time(State *state) {
     struct timeval now;
     gettimeofday(&now, NULL);
 
-    // Calculate time difference in seconds with microsecond precision
-    return (double) (now.tv_sec - state->start_time.tv_sec) +
-           (double) (now.tv_usec - state->start_time.tv_usec) / 1000000.0;
+    int64_t seconds = now.tv_sec - state->start_time.tv_sec;
+    int64_t useconds = now.tv_usec - state->start_time.tv_usec;
+
+    return (seconds * 1000) + (useconds / 1000);
 }
 
 // Sort order:
@@ -86,10 +87,9 @@ void sort_move_list(State *state, MoveList *move_list, Color side_to_move) {
 }
 
 void update_clock(State *state) {
-    double elapsed = get_elapsed_time(state);
+    int64_t elapsed = get_elapsed_time(state);
 
-    // Use 95% of allocated time to ensure we return before timeout
-    if (elapsed >= state->max_time * 0.99) {
+    if (elapsed + 10 >= state->max_time) {
         state->time_over = true;
     }
 }
@@ -110,7 +110,7 @@ bool is_repetition(State *state, Position *position) {
 
 int alpha_beta(State *state, Position *position, int depth, int alpha, int beta);
 
-MoveWithMateInfo search(State *state, Position *position, double max_time_seconds) {
+void search(State *state) {
     state->search_ply = 0;
 
     memset(state->pv_table, 0, sizeof(state->pv_table));
@@ -123,7 +123,6 @@ MoveWithMateInfo search(State *state, Position *position, double max_time_second
     state->time_over = false;
     state->nodes_visited = 0;
     gettimeofday(&state->start_time, NULL);
-    state->max_time = max_time_seconds;
 
     int alpha = -INF;
     int beta = INF;
@@ -132,33 +131,33 @@ MoveWithMateInfo search(State *state, Position *position, double max_time_second
     bool found_mate = false;
 
     for (int depth = 1; depth <= 100; depth++) {
-        if (state->time_over) {
+        if (state->time_over || atomic_load(&state->stopped)) {
             break;
         }
 
         // Only search on full turns during the setup phase
-        if (position->ply + depth < 10 && depth % 2 == 1 - (int) position->side_to_move) {
+        if (state->position.ply + depth < 10 && depth % 2 == 1 - (int) state->position.side_to_move) {
             continue;
         }
 
         state->tt_best_move_flag = FLAG_NULL;
         state->follow_pv = true;
 
-        int score = alpha_beta(state, position, depth, alpha, beta);
+        int score = alpha_beta(state, &state->position, depth, alpha, beta);
 
-        if (state->ctx->debug) {
-            if (state->time_over) {
-                printf("Depth=%d, Score=/\n", depth);
-            } else {
-                printf("Depth=%d, Score=%.2f\n", depth, (float) score / 100.0f);
-            }
-
-            for (int i = 0; i < state->pv_table[0].size; i++) {
-                move_print(state->pv_table[0].elems[i]);
-                printf(" ");
-            }
-
-            printf("\n");
+        if (state->debug) {
+            // if (state->time_over || atomic_load(&state->stopped)) {
+            //     printf("Depth=%d, Score=/\n", depth);
+            // } else {
+            //     printf("Depth=%d, Score=%.2f\n", depth, (float) score / 100.0f);
+            // }
+            //
+            // for (int i = 0; i < state->pv_table[0].size; i++) {
+            //     move_print(state->pv_table[0].elems[i]);
+            //     printf(" ");
+            // }
+            //
+            // printf("\n");
         }
 
         if (state->pv_table[0].size > 0) {
@@ -174,12 +173,9 @@ MoveWithMateInfo search(State *state, Position *position, double max_time_second
         }
     }
 
-    return (MoveWithMateInfo){
-        .from = best_move.from,
-        .to = best_move.to,
-        .captures = best_move.captures,
-        .found_mate = found_mate,
-    };
+    // FIXME: Thread safety
+    printf("bestmove %s\n", move_to_uci(best_move));
+    fflush(stdout);
 }
 
 int quiesce(State *state, Position *position, int alpha, int beta) {
@@ -200,7 +196,7 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
         return 0;
     }
 
-    int stand_pat = network_evaluate(&state->ctx->net, &position->accumulators[turn], &position->accumulators[1 - turn]);
+    int stand_pat = network_evaluate(&state->net, &position->accumulators[turn], &position->accumulators[1 - turn]);
     if (stand_pat >= beta) {
         return beta;
     }
@@ -212,7 +208,7 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
     MoveList move_list;
     move_list.size = 0;
 
-    legal_moves(state->ctx, position, &move_list);
+    legal_moves(position, &move_list);
     state->tt_best_move_flag = FLAG_NULL;
     sort_move_list(state, &move_list, position->side_to_move);
 
@@ -233,13 +229,13 @@ int quiesce(State *state, Position *position, int alpha, int beta) {
 
         state->search_ply++;
 
-        Position new_position = make_move(state->ctx, position, move);
+        Position new_position = make_move(position, &state->net, move);
 
         int score = -quiesce(state, &new_position, -beta, -alpha);
 
         state->search_ply--;
 
-        if (state->time_over) {
+        if (state->time_over || atomic_load(&state->stopped)) {
             return 0;
         }
 
@@ -275,7 +271,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     }
 
     PackedMove tt_best_move = NULL_PACKED_MOVE;
-    int tt_value = tt_get(state->ctx, position, depth, alpha, beta, &tt_best_move);
+    int tt_value = tt_get(&state->tt, position, depth, alpha, beta, &tt_best_move);
     packed_move_extract(tt_best_move, &state->tt_best_move_flag, &state->tt_best_move_from, &state->tt_best_move_to);
 
     int pv_node = beta - alpha > 1;
@@ -287,7 +283,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     if (depth == 0) {
         // Only search at even depth during the setup
         if (position->ply < 10) {
-            return network_evaluate(&state->ctx->net, &position->accumulators[position->side_to_move],
+            return network_evaluate(&state->net, &position->accumulators[position->side_to_move],
                                     &position->accumulators[1 - position->side_to_move]);
         }
 
@@ -298,7 +294,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
 
     MoveList move_list;
     move_list.size = 0;
-    legal_moves(state->ctx, position, &move_list);
+    legal_moves(position, &move_list);
 
     if (state->follow_pv) {
         state->follow_pv = false;
@@ -323,7 +319,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
 
     for (int i = 0; i < move_list.size; i++) {
         Move move = move_list.elems[i];
-        Position new_position = make_move(state->ctx, position, move);
+        Position new_position = make_move(position, &state->net, move);
 
         state->search_ply++;
 
@@ -351,7 +347,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
 
         state->search_ply--;
 
-        if (state->time_over) {
+        if (state->time_over || atomic_load(&state->stopped)) {
             return 0;
         }
 
@@ -373,7 +369,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
 
             if (score >= beta) {
                 PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, move.from, move.to);
-                tt_set(state->ctx, position, depth, beta, ENTRY_TYPE_BETA, best_move_packed);
+                tt_set(&state->tt, position, depth, beta, ENTRY_TYPE_BETA, best_move_packed);
 
                 if (bb_is_empty(move.captures)) {
                     state->killer_moves[1][state->search_ply] = state->killer_moves[0][state->search_ply];
@@ -393,9 +389,9 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
 
     if (best_move_valid) {
         PackedMove best_move_packed = packed_move_new(FLAG_NORMAL, best_move.from, best_move.to);
-        tt_set(state->ctx, position, depth, alpha, tt_entry_type, best_move_packed);
+        tt_set(&state->tt, position, depth, alpha, tt_entry_type, best_move_packed);
     } else {
-        tt_set(state->ctx, position, depth, alpha, tt_entry_type, NULL_PACKED_MOVE);
+        tt_set(&state->tt, position, depth, alpha, tt_entry_type, NULL_PACKED_MOVE);
     }
 
 

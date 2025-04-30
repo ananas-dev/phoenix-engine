@@ -32,7 +32,7 @@ static inline int get_feature_index_black(Color color, Piece piece, Square squar
     return get_feature_index_white(1-color, piece, mirrored);
 }
 
-void load_network_from_bytes(struct Context *ctx, const uint8_t* data, size_t len);
+void load_network_from_bytes(Network* net, const uint8_t* data, size_t len);
 int32_t network_evaluate(const Network* net, const Accumulator* us, const Accumulator* them);
 Accumulator accumulator_new(const Network* net);
 void accumulator_add_feature(Accumulator* acc, const Network* net, size_t feature_idx);

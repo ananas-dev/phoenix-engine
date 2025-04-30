@@ -1,7 +1,6 @@
 #pragma once
 
 #include <limits.h>
-#include "bitboard.h"
 #include "position.h"
 
 #define TT_MISS INT_MIN
@@ -20,7 +19,13 @@ typedef struct TTEntry {
     uint8_t depth;
 } TTEntry;
 
-void tt_init(Context *ctx, int size);
-void tt_set(Context *ctx, Position *position, uint8_t depth, int val, TTEntryType type, PackedMove best_move);
-int tt_get(Context *ctx, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move);
-double tt_fill_rate(Context *ctx);
+typedef struct {
+    TTEntry *entries;
+    size_t size;
+} TT;
+
+TT tt_new(int size_in_mb);
+void tt_set(TT *tt, Position *position, uint8_t depth, int val, TTEntryType type, PackedMove best_move);
+int tt_get(TT *tt, Position *position, uint8_t depth, int alpha, int beta, PackedMove *best_move);
+double tt_fill_rate(TT *tt);
+void tt_free(TT *tt);

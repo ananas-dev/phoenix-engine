@@ -13,13 +13,6 @@ typedef struct {
     Move elems[128];
 } MoveList;
 
-typedef struct {
-    Bitboard captures;
-    uint8_t from;
-    uint8_t to;
-    bool found_mate;
-} MoveWithMateInfo;
-
 typedef enum {
     FLAG_NULL = 0,
     FLAG_NORMAL = 1,
@@ -41,3 +34,5 @@ static inline void packed_move_extract(PackedMove move, PackedMoveFlag *flag, Sq
 }
 
 void move_print(Move move);
+char* move_to_uci(Move move);
+Move uci_to_move(const char* uci);

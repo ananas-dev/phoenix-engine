@@ -3,10 +3,9 @@
 #include "core.h"
 #include "bitboard.h"
 #include "move.h"
-#include "context.h"
 #include "nnue.h"
 
-#define FEN_START "SSSSSS2/SSSSS2s/SSSS2ss/SSS2sss/SS2ssss/S2sssss/2ssssss 0 w 00"
+#define FEN_START "SSSSSS2/SSSSS2s/SSSS2ss/SSS2sss/SS2ssss/S2sssss/2ssssss 0 0 w 00"
 
 typedef struct {
     Bitboard pieces[NUM_COLOR][NUM_PIECE];
@@ -19,7 +18,7 @@ typedef struct {
     bool can_create_king;
 } Position;
 
-void position_init(Context *ctx);
+void position_init();
 
 static inline GameState position_state(Position *pos) {
     if (pos->half_move_clock >= 50) {
@@ -58,10 +57,10 @@ static inline int count_pieces(Position *pos, Piece piece_type) {
     return bb_popcnt(pos->pieces[COLOR_WHITE][piece_type]) + bb_popcnt(pos->pieces[COLOR_BLACK][piece_type]);
 }
 
-Position make_move(Context *ctx, Position *pos, Move move);
-Position position_from_fen(Context *ctx, const char *fen_str);
-Position position_from_fen_no_hash(const char *fen_str);
-uint64_t position_hash(Context *ctx, const Position *position);
+Position make_move(Position *pos, Network *net,  Move move);
+Position position_from_fen(const char *fen_str, Network *net);
+Position position_from_fen_core(const char *fen_str);
+uint64_t position_hash(const Position *position);
 
 void position_print(Position *pos);
 
