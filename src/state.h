@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sys/time.h>
 #include "position.h"
 #include "nnue.h"
 #include "tt.h"

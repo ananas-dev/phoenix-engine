@@ -6,7 +6,9 @@
 #include "nnue.h"
 #include "ugi.h"
 
-int main(int argc, char **argv) {
+#include <stdio.h>
+
+int main() {
     movegen_init();
     position_init();
 

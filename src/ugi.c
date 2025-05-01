@@ -1,20 +1,47 @@
 #include "state.h"
 #include "search.h"
-#include <stdio.h>
-#include <threads.h>
+#include <pthread.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "ugi.h"
 
 #include "list.h"
 
-thrd_t search_thread;
+pthread_t search_thread;
 
-int search_thread_func(void *arg) {
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+EM_ASYNC_JS(char *, em_fgets, (const char* buf, size_t bufsize), {
+  return await new Promise((resolve, reject) => {
+      if (Module.pending_lines.length > 0) {
+        resolve(Module.pending_lines.shift());
+      } else {
+        Module.pending_fgets.push(resolve);
+      }
+  }).then((s) => {
+      // convert JS string to WASM string
+      let l = s.length + 1;
+      if (l >= bufsize) {
+        // truncate
+        l = bufsize - 1;
+      }
+      Module.stringToUTF8(s.slice(0, l), buf, l);
+      return buf;
+  });
+});
+
+#define readline(buf, bufsize) em_fgets((buf), (bufsize))
+#else
+#define readline(buf, bufsize) fgets((buf), (bufsize), stdin)
+#endif
+
+void *search_thread_func(void *arg) {
     State *state = arg;
     search(state);
-    return 0;
+    return NULL;
 }
 
 void ugi_loop(TT tt, Network net) {
@@ -28,14 +55,16 @@ void ugi_loop(TT tt, Network net) {
     atomic_store(&state.stopped, true);
 
     while (1) {
-        fgets(input, sizeof(input), stdin);
+        readline(input, sizeof(input));
 
         char *token = strtok(input, " \n");
+
+        if (!token) continue;
 
         if (strcmp(token, "ugi") == 0) {
             printf("id name Clippy\n");
             printf("id author Lucien Fiorini\n");
-            printf("option name hash type spin default 128 min 1 max 2048\n");
+            // printf("option name hash type spin default 128 min 1 max 2048\n");
             printf("ugiok\n");
         } else if (strcmp(token, "isready") == 0) {
             printf("readyok\n");
@@ -73,7 +102,7 @@ void ugi_loop(TT tt, Network net) {
         } else if (strcmp(token, "go") == 0) {
             if (!atomic_load(&state.stopped)) {
                 atomic_store(&state.stopped, true);
-                thrd_join(search_thread, NULL);
+                pthread_join(search_thread, NULL);
                 atomic_store(&state.stopped, false);
             }
             int64_t p1time = -1, p2time = -1, p1inc = 0, p2inc = 0;
@@ -105,11 +134,11 @@ void ugi_loop(TT tt, Network net) {
 
             atomic_store(&state.stopped, false);
 
-            thrd_create(&search_thread, search_thread_func, &state);
+            pthread_create(&search_thread, NULL, search_thread_func, &state);
         } else if (strcmp(token, "stop") == 0) {
             if (!atomic_load(&state.stopped)) {
                 atomic_store(&state.stopped, true);
-                thrd_join(search_thread, NULL);
+                pthread_join(search_thread, NULL);
             }
         } else if (strcmp(token, "query") == 0) {
             token = strtok(NULL, " \n");
@@ -142,7 +171,7 @@ void ugi_loop(TT tt, Network net) {
         } else if (strcmp(token, "quit") == 0) {
             if (!atomic_load(&state.stopped)) {
                 atomic_store(&state.stopped, true);
-                thrd_join(search_thread, NULL);
+                pthread_join(search_thread, NULL);
             }
 
             break;
