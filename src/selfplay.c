@@ -1,8 +1,10 @@
 #include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <time.h>
 
 #include "list.h"
 #include "movegen.h"
@@ -27,6 +29,8 @@ int main() {
 
     for (int process = 0; process < NUM_PROCESS; process++) {
         __pid_t pid = fork();
+
+        srand(time(NULL));
 
         if (pid == 0) {
             // Silence child process
@@ -86,11 +90,20 @@ int main() {
 
                 GameState white_result;
 
+                int remaining_random_moves = rand() % 9 + 1;
+
                 for (;;) {
-                    printf("Start move\n");
                     SearchResult search_result;
 
-                    if (position.side_to_move == COLOR_WHITE) {
+                    if (remaining_random_moves > 0) {
+                        MoveList moves;
+                        legal_moves(&position, &moves);
+                        search_result = (SearchResult) {
+                            .best_move = moves.elems[rand() % moves.size],
+                            .forced_win = false,
+                        };
+                        remaining_random_moves--;
+                    } else if (position.side_to_move == COLOR_WHITE) {
                         state_1.position = position;
                         search_result = search(&state_1);
                     } else {
