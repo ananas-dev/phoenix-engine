@@ -300,6 +300,68 @@ Position position_from_fen_core(const char *fen_str) {
     return position;
 }
 
+char *position_to_fen(const Position *position) {
+    char board_str[128] = {0};
+    static char fen_str[128];
+    int pos = 0;
+
+    for (int rank = RANK_7; rank >= RANK_1; rank--) {
+        if (rank < RANK_7) {
+            board_str[pos++] = '/';
+        }
+
+        int empty_count = 0;
+
+        for (int file = FILE_A; file < FILE_H; file++) {
+            uint64_t bb_sq = bb_from_sq(sq_get(file, rank));
+
+            char piece_char = 0;
+
+            if (position->pieces[COLOR_WHITE][PIECE_SOLDIER] & bb_sq) {
+                piece_char = 'S';
+            } else if (position->pieces[COLOR_WHITE][PIECE_GENERAL] & bb_sq) {
+                piece_char = 'G';
+            } else if (position->pieces[COLOR_WHITE][PIECE_KING] & bb_sq) {
+                piece_char = 'K';
+            }
+
+            else if (position->pieces[COLOR_BLACK][PIECE_SOLDIER] & bb_sq) {
+                piece_char = 's';
+            } else if (position->pieces[COLOR_BLACK][PIECE_GENERAL] & bb_sq) {
+                piece_char = 'g';
+            } else if (position->pieces[COLOR_BLACK][PIECE_KING] & bb_sq) {
+                piece_char = 'k';
+            }
+
+            if (piece_char != 0) {
+                if (empty_count > 0) {
+                    board_str[pos++] = '0' + empty_count;
+                    empty_count = 0;
+                }
+                board_str[pos++] = piece_char;
+            } else {
+                empty_count++;
+            }
+        }
+
+        if (empty_count > 0) {
+            board_str[pos++] = '0' + empty_count;
+        }
+    }
+
+    board_str[pos] = '\0';
+
+    snprintf(fen_str, sizeof(fen_str), "%s %d %d %c %c%c",
+             board_str,
+             position->ply,
+             position->half_move_clock,
+             position->side_to_move == COLOR_WHITE ? 'w' : 'b',
+             position->can_create_general ? '1' : '0',
+             position->can_create_king ? '1' : '0');
+
+    return fen_str;
+}
+
 void position_print(Position *pos) {
     printf("+---+---+---+---+---+---+---+---+\n");
     for (int rank = 6; rank >= 0; --rank) {

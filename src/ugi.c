@@ -1,13 +1,11 @@
+#include "ugi.h"
 #include "state.h"
 #include "search.h"
+#include "list.h"
 #include <pthread.h>
 #include <stdatomic.h>
 #include <string.h>
 #include <stdio.h>
-
-#include "ugi.h"
-
-#include "list.h"
 
 pthread_t search_thread;
 
@@ -71,6 +69,8 @@ void ugi_loop(TT tt, Network net) {
         } else if (strcmp(token, "uginewgame") == 0) {
             list_clear(&state.game_history);
         } else if (strcmp(token, "position") == 0) {
+            list_clear(&state.game_history);
+
             token = strtok(NULL, " \n");
 
             if (token && strcmp(token, "startpos") == 0) {
@@ -97,6 +97,7 @@ void ugi_loop(TT tt, Network net) {
                 while ((token = strtok(NULL, " \n")) != NULL) {
                     Move move = uci_to_move(token);
                     state.position = make_move(&state.position, &net, move);
+                    list_push(&state.game_history, state.position.hash);
                 }
             }
         } else if (strcmp(token, "go") == 0) {
@@ -107,22 +108,22 @@ void ugi_loop(TT tt, Network net) {
             }
             int64_t p1time = -1, p2time = -1, p1inc = 0, p2inc = 0;
 
-            token = strtok(NULL, " ");
+            token = strtok(NULL, " \n");
             while (token != NULL) {
                 if (strcmp(token, "p1time") == 0) {
-                    token = strtok(NULL, " ");
+                    token = strtok(NULL, " \n");
                     if (token) p1time = strtoll(token, NULL, 10);
                 } else if (strcmp(token, "p2time") == 0) {
-                    token = strtok(NULL, " ");
+                    token = strtok(NULL, " \n");
                     if (token) p2time = strtoll(token, NULL, 10);
                 } else if (strcmp(token, "p1inc") == 0) {
-                    token = strtok(NULL, " ");
+                    token = strtok(NULL, " \n");
                     if (token) p1inc = strtoll(token, NULL, 10);
                 } else if (strcmp(token, "p2inc") == 0) {
-                    token = strtok(NULL, " ");
+                    token = strtok(NULL, " \n");
                     if (token) p2inc = strtoll(token, NULL, 10);
                 }
-                token = strtok(NULL, " ");
+                token = strtok(NULL, " \n");
             }
 
             if (p1time == -1 || p2time == -1) continue;

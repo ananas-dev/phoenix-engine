@@ -110,7 +110,7 @@ bool is_repetition(State *state, Position *position) {
 
 int alpha_beta(State *state, Position *position, int depth, int alpha, int beta);
 
-void search(State *state) {
+SearchResult search(State *state) {
     state->search_ply = 0;
 
     memset(state->pv_table, 0, sizeof(state->pv_table));
@@ -128,36 +128,32 @@ void search(State *state) {
     int beta = INF;
 
     Move best_move = {0};
-    bool found_mate = false;
+    bool forced_win = false;
 
     for (int depth = 1; depth <= 100; depth++) {
         if (state->time_over || atomic_load(&state->stopped)) {
             break;
         }
 
-        // Only search on full turns during the setup phase
-        if (state->position.ply + depth < 10 && depth % 2 == 1 - (int) state->position.side_to_move) {
-            continue;
-        }
+        // // Only search on full turns during the setup phase
+        // if (state->position.ply + depth < 10 && depth % 2 == 1 - (int) state->position.side_to_move) {
+        //     continue;
+        // }
 
         state->tt_best_move_flag = FLAG_NULL;
         state->follow_pv = true;
 
         int score = alpha_beta(state, &state->position, depth, alpha, beta);
 
-        if (state->debug) {
-            // if (state->time_over || atomic_load(&state->stopped)) {
-            //     printf("Depth=%d, Score=/\n", depth);
-            // } else {
-            //     printf("Depth=%d, Score=%.2f\n", depth, (float) score / 100.0f);
-            // }
-            //
-            // for (int i = 0; i < state->pv_table[0].size; i++) {
-            //     move_print(state->pv_table[0].elems[i]);
-            //     printf(" ");
-            // }
-            //
-            // printf("\n");
+        if (!state->time_over && !atomic_load(&state->stopped)) {
+            printf("info depth %d score cp %d pv ", depth, score);
+
+            for (int i = 0; i < state->pv_table[0].size; i++) {
+                char *move_string = move_to_uci(state->pv_table[0].elems[i]);
+                printf("%s%s", move_string, i == state->pv_table[0].size - 1 ? "\n" : " ");
+            }
+
+            fflush(stdout);
         }
 
         if (state->pv_table[0].size > 0) {
@@ -165,17 +161,20 @@ void search(State *state) {
         }
 
         if (score >= INF - MAX_PLY || score <= -INF + MAX_PLY) {
-            found_mate = true;
             if (score > 0) {
-                // Only break if winning
+                forced_win = true;
                 break;
             }
         }
     }
 
-    // FIXME: Thread safety
     printf("bestmove %s\n", move_to_uci(best_move));
     fflush(stdout);
+
+    return (SearchResult) {
+        .best_move = best_move,
+        .forced_win = forced_win,
+    };
 }
 
 int quiesce(State *state, Position *position, int alpha, int beta) {
@@ -281,7 +280,6 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
     }
 
     if (depth == 0) {
-        // Only search at even depth during the setup
         if (position->ply < 10) {
             return network_evaluate(&state->net, &position->accumulators[position->side_to_move],
                                     &position->accumulators[1 - position->side_to_move]);

@@ -1,12 +1,9 @@
 #include "movegen.h"
 #include "position.h"
-#include "search.h"
 #include "tt.h"
 #include "nnue_data.h"
 #include "nnue.h"
 #include "ugi.h"
-
-#include <stdio.h>
 
 int main() {
     movegen_init();

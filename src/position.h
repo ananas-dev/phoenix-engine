@@ -61,6 +61,7 @@ Position make_move(Position *pos, Network *net,  Move move);
 Position position_from_fen(const char *fen_str, Network *net);
 Position position_from_fen_core(const char *fen_str);
 uint64_t position_hash(const Position *position);
+char *position_to_fen(const Position *position);
 
 void position_print(Position *pos);
 

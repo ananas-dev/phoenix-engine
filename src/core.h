@@ -60,10 +60,10 @@ typedef enum {
 } Piece;
 
 typedef enum {
-    STATE_ONGOING,
     STATE_LOSS,
-    STATE_WIN,
     STATE_DRAW,
+    STATE_WIN,
+    STATE_ONGOING,
 } GameState;
 
 static inline int sq_file(Square sq) {
