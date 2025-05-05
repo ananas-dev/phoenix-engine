@@ -312,7 +312,7 @@ char *position_to_fen(const Position *position) {
 
         int empty_count = 0;
 
-        for (int file = FILE_A; file < FILE_H; file++) {
+        for (int file = FILE_A; file <= FILE_H; file++) {
             uint64_t bb_sq = bb_from_sq(sq_get(file, rank));
 
             char piece_char = 0;

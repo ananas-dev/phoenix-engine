@@ -30,9 +30,9 @@ int main() {
     for (int process = 0; process < NUM_PROCESS; process++) {
         __pid_t pid = fork();
 
-        srand(time(NULL));
-
         if (pid == 0) {
+            srand(getpid());
+
             // Silence child process
             freopen("/dev/null", "w", stdout);
             freopen("/dev/null", "w", stderr);
