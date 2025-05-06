@@ -18,7 +18,7 @@ typedef struct __attribute__((aligned(64))) {
 typedef struct __attribute__((aligned(64))) {
     Accumulator feature_weights[336];
     Accumulator feature_bias;
-    int16_t output_weights[2 * HIDDEN_SIZE];
+    int16_t output_weights[4 * HIDDEN_SIZE];
     int16_t output_bias;
 } Network;
 
@@ -34,6 +34,7 @@ static inline int get_feature_index_black(Color color, Piece piece, Square squar
 
 void load_network_from_bytes(Network* net, const uint8_t* data, size_t len);
 int32_t network_evaluate(const Network* net, const Accumulator* us, const Accumulator* them);
+int32_t network_evaluate_setup(const Network* net, const Accumulator* us, const Accumulator* them);
 Accumulator accumulator_new(const Network* net);
 void accumulator_add_feature(Accumulator* acc, const Network* net, size_t feature_idx);
 void accumulator_remove_feature(Accumulator* acc, const Network* net, size_t feature_idx);

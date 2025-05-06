@@ -32,12 +32,35 @@ int32_t network_evaluate(const Network* net, const Accumulator* us, const Accumu
     int32_t output = (int32_t)(net->output_bias);
 
     for (int i = 0; i < HIDDEN_SIZE; i++) {
+        output += crelu(us->vals[i]) * (int32_t)(net->output_weights[HIDDEN_SIZE * 2 + i]);
+    }
+
+    for (int i = 0; i < HIDDEN_SIZE; i++) {
+        output += crelu(them->vals[i]) * (int32_t)(net->output_weights[HIDDEN_SIZE * 3 + i]);
+    }
+
+    if (output > INT32_MAX / SCALE) output = INT32_MAX / SCALE;
+    if (output < INT32_MIN / SCALE) output = INT32_MIN / SCALE;
+
+    output *= SCALE;
+    output /= QA * QB;
+
+    return output;
+}
+
+int32_t network_evaluate_setup(const Network* net, const Accumulator* us, const Accumulator* them) {
+    int32_t output = (int32_t)(net->output_bias);
+
+    for (int i = 0; i < HIDDEN_SIZE; i++) {
         output += crelu(us->vals[i]) * (int32_t)(net->output_weights[i]);
     }
 
     for (int i = 0; i < HIDDEN_SIZE; i++) {
         output += crelu(them->vals[i]) * (int32_t)(net->output_weights[HIDDEN_SIZE + i]);
     }
+
+    if (output > INT32_MAX / SCALE) output = INT32_MAX / SCALE;
+    if (output < INT32_MIN / SCALE) output = INT32_MIN / SCALE;
 
     output *= SCALE;
     output /= QA * QB;
