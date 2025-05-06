@@ -161,7 +161,6 @@ int main() {
                     list_push(&state_2.game_history, position.hash);
 
                     // Skip tactical positions
-
                     if (position.ply >= 10) {
                         if (bb_popcnt(position.pieces[COLOR_WHITE][PIECE_KING]) == 0 || bb_popcnt(
                                 position.pieces[COLOR_BLACK][PIECE_KING]) == 0) {
