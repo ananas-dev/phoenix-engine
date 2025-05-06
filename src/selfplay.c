@@ -114,10 +114,12 @@ int main() {
                     } else {
                         state_2.position = position;
                         search_result = search(&state_2);
+                        // Use score from white's POV
+                        search_result.score *= -1;
                     }
 
-                    // Since a move has been made
-                    if (abs(search_result.score) >= 10000) {
+                    // End game if mating score is found
+                    if (abs(search_result.score) >= 90000) {
                         if (position.side_to_move == COLOR_WHITE) {
                             white_result = STATE_WIN;
                             break;
