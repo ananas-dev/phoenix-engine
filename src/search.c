@@ -128,7 +128,7 @@ SearchResult search(State *state) {
     int beta = INF;
 
     Move best_move = {0};
-    bool forced_win = false;
+    int32_t final_score = 0;
 
     for (int depth = 1; depth <= 100; depth++) {
         if (state->time_over || atomic_load(&state->stopped)) {
@@ -146,6 +146,8 @@ SearchResult search(State *state) {
         int score = alpha_beta(state, &state->position, depth, alpha, beta);
 
         if (!state->time_over && !atomic_load(&state->stopped)) {
+            final_score = score;
+
             printf("info depth %d score cp %d pv ", depth, score);
 
             for (int i = 0; i < state->pv_table[0].size; i++) {
@@ -162,7 +164,6 @@ SearchResult search(State *state) {
 
         if (score >= INF - MAX_PLY || score <= -INF + MAX_PLY) {
             if (score > 0) {
-                forced_win = true;
                 break;
             }
         }
@@ -173,7 +174,7 @@ SearchResult search(State *state) {
 
     return (SearchResult) {
         .best_move = best_move,
-        .forced_win = forced_win,
+        .score = final_score,
     };
 }
 
@@ -281,7 +282,7 @@ int alpha_beta(State *state, Position *position, int depth, int alpha, int beta)
 
     if (depth == 0) {
         if (position->ply < 10) {
-            return network_evaluate(&state->net, &position->accumulators[position->side_to_move],
+            return network_evaluate_setup(&state->net, &position->accumulators[position->side_to_move],
                                     &position->accumulators[1 - position->side_to_move]);
         }
 

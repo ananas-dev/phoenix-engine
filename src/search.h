@@ -5,7 +5,7 @@
 
 typedef struct {
     Move best_move;
-    bool forced_win;
+    int32_t score;
 } SearchResult;
 
 SearchResult search(State *state);

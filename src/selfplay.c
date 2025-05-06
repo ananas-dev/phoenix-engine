@@ -19,7 +19,12 @@
 #define GAMES_PER_PROCESS 128000
 
 typedef struct {
-    Position elems[1024];
+    Position position;
+    int32_t score;
+} ScoredPosition;
+
+typedef struct {
+    ScoredPosition elems[1024];
     int size;
 } PositionList;
 
@@ -98,9 +103,9 @@ int main() {
                     if (remaining_random_moves > 0) {
                         MoveList moves;
                         legal_moves(&position, &moves);
-                        search_result = (SearchResult) {
+                        search_result = (SearchResult){
                             .best_move = moves.elems[rand() % moves.size],
-                            .forced_win = false,
+                            .score = 0,
                         };
                         remaining_random_moves--;
                     } else if (position.side_to_move == COLOR_WHITE) {
@@ -112,7 +117,7 @@ int main() {
                     }
 
                     // Since a move has been made
-                    if (search_result.forced_win) {
+                    if (abs(search_result.score) >= 10000) {
                         if (position.side_to_move == COLOR_WHITE) {
                             white_result = STATE_WIN;
                             break;
@@ -156,21 +161,29 @@ int main() {
                     list_push(&state_2.game_history, position.hash);
 
                     // Skip tactical positions
-                    if (bb_popcnt(position.pieces[COLOR_WHITE][PIECE_KING]) == 0 || bb_popcnt(position.pieces[COLOR_BLACK][PIECE_KING]) == 0) {
+                    if (bb_popcnt(position.pieces[COLOR_WHITE][PIECE_KING]) == 0 || bb_popcnt(
+                            position.pieces[COLOR_BLACK][PIECE_KING]) == 0) {
                         continue;
                     }
                     if (position.can_create_general || position.can_create_king) {
                         continue;
                     }
 
-                    list_push(&pos_list, position);
+                    if (pos_list.size >= 1024) {
+                        printf("Game too long!\n");
+                        return 1;
+                    }
+
+                    ScoredPosition scored_position = {
+                        .position = position,
+                        .score = search_result.score
+                    };
+                    list_push(&pos_list, scored_position);
                 }
 
                 for (int i = 0; i < pos_list.size; i++) {
-                    int eval = network_evaluate(&net, &pos_list.elems[i].accumulators[COLOR_WHITE],
-                                                &pos_list.elems[i].accumulators[COLOR_BLACK]);
-
-                    fprintf(file, "%s|%d|%d\n", position_to_fen(&pos_list.elems[i]), eval, (int) white_result);
+                    fprintf(file, "%s|%d|%d\n", position_to_fen(&pos_list.elems[i].position), pos_list.elems[i].score,
+                            (int) white_result);
                 }
             }
 
