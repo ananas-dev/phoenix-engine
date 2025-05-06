@@ -100,6 +100,8 @@ int main() {
                 for (;;) {
                     SearchResult search_result;
 
+                    bool is_random_move = false;
+
                     if (remaining_random_moves > 0) {
                         MoveList moves;
                         legal_moves(&position, &moves);
@@ -107,6 +109,7 @@ int main() {
                             .best_move = moves.elems[rand() % moves.size],
                             .score = 0,
                         };
+                        is_random_move = true;
                         remaining_random_moves--;
                     } else if (position.side_to_move == COLOR_WHITE) {
                         state_1.position = position;
@@ -174,7 +177,7 @@ int main() {
                     }
 
                     // Skip random setup moves
-                    if (remaining_random_moves + 1 > 0) {
+                    if (is_random_move) {
                         continue;
                     }
 
