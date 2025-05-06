@@ -174,7 +174,7 @@ int main() {
                     }
 
                     // Skip random setup moves
-                    if (remaining_random_moves > 0) {
+                    if (remaining_random_moves + 1 > 0) {
                         continue;
                     }
 
