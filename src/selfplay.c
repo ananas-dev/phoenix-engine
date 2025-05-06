@@ -161,11 +161,19 @@ int main() {
                     list_push(&state_2.game_history, position.hash);
 
                     // Skip tactical positions
-                    if (bb_popcnt(position.pieces[COLOR_WHITE][PIECE_KING]) == 0 || bb_popcnt(
-                            position.pieces[COLOR_BLACK][PIECE_KING]) == 0) {
-                        continue;
+
+                    if (position.ply >= 10) {
+                        if (bb_popcnt(position.pieces[COLOR_WHITE][PIECE_KING]) == 0 || bb_popcnt(
+                                position.pieces[COLOR_BLACK][PIECE_KING]) == 0) {
+                            continue;
+                        }
+                        if (position.can_create_general || position.can_create_king) {
+                            continue;
+                        }
                     }
-                    if (position.can_create_general || position.can_create_king) {
+
+                    // Skip random setup moves
+                    if (remaining_random_moves > 0) {
                         continue;
                     }
 
