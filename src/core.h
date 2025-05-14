@@ -8,7 +8,7 @@ typedef enum {
     SQ_A5, SQ_B5, SQ_C5, SQ_D5, SQ_E5, SQ_F5, SQ_G5, SQ_H5,
     SQ_A6, SQ_B6, SQ_C6, SQ_D6, SQ_E6, SQ_F6, SQ_G6, SQ_H6,
     SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
-    NUM_SQUARE,
+    NUM_SQUARE, INVALID_SQUARE,
 } Square;
 
 typedef enum {
@@ -56,7 +56,15 @@ typedef enum {
     PIECE_GENERAL,
     PIECE_KING,
     NUM_PIECE,
+    INVALID_PIECE,
 } Piece;
+
+typedef enum {
+    STATE_LOSS,
+    STATE_DRAW,
+    STATE_WIN,
+    STATE_ONGOING,
+} GameState;
 
 static inline int sq_file(Square sq) {
     return sq & 7;
@@ -68,6 +76,16 @@ static inline int sq_rank(Square sq) {
 
 static inline int sq_get(File file, Rank rank) {
     return 8 * rank + file;
+}
+
+static inline Square sq_mirror(Square sq) {
+    File file = sq_file(sq);
+    Rank rank = sq_rank(sq);
+
+    File mirrored_file = FILE_H - file;
+    Rank mirrored_rank = RANK_7 - rank;
+
+    return sq_get(mirrored_file, mirrored_rank);
 }
 
 static inline void sq_to_string(Square sq, char str[3]) {

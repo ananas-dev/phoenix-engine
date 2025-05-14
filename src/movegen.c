@@ -1,8 +1,21 @@
 #include "movegen.h"
+#include "list.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <string.h>
+
+typedef struct {
+    Bitboard *ptr;
+    Bitboard mask;
+    uint64_t magic;
+    uint8_t offset;
+} Magic;
+
+Magic magics[NUM_SQUARE];
+Bitboard general_attack_table[NUM_SQUARE * 4096];
+
+Bitboard soldier_attack_table[NUM_SQUARE];
+Bitboard king_attack_table[NUM_SQUARE];
 
 static uint64_t random_u64(void) {
     static uint64_t next = 1;
@@ -27,7 +40,7 @@ Bitboard soldier_mask(Square square) {
     return attacks;
 }
 
-Bitboard soldier_attacks(State *state, Square square) { return state->soldier_attack_table[square]; }
+Bitboard soldier_attacks(Square square) { return soldier_attack_table[square]; }
 
 Bitboard king_mask(Square square) {
     Bitboard attacks = BB_EMPTY;
@@ -54,7 +67,7 @@ Bitboard king_mask(Square square) {
     return attacks;
 }
 
-Bitboard king_attacks(State *state, Square square) { return state->king_attack_table[square]; }
+Bitboard king_attacks(Square square) { return king_attack_table[square]; }
 
 Bitboard general_attacks_slow(Square sq, Bitboard blockers) {
     Bitboard moves = BB_EMPTY;
@@ -129,8 +142,8 @@ size_t magic_index(Magic *entry, Bitboard blockers) {
     return blockers;
 }
 
-Bitboard general_attacks(State *state, Square sq, Bitboard blockers) {
-    Magic *entry = &state->magics[sq];
+Bitboard general_attacks(Square sq, Bitboard blockers) {
+    Magic *entry = &magics[sq];
     return entry->ptr[magic_index(entry, blockers)];
 }
 
@@ -158,15 +171,15 @@ bool try_magic(Square sq, Magic *entry) {
     }
 }
 
-void init_leaper_attacks(State *state) {
+void init_leaper_attacks() {
     for (Square sq = SQ_A1; sq <= SQ_H7; sq++) {
-        state->soldier_attack_table[sq] = soldier_mask(sq);
-        state->king_attack_table[sq] = king_mask(sq);
+        soldier_attack_table[sq] = soldier_mask(sq);
+        king_attack_table[sq] = king_mask(sq);
     }
 }
 
-void init_slider_attacks(State *state) {
-    Bitboard *ptr = state->general_attack_table;
+void init_slider_attacks() {
+    Bitboard *ptr = general_attack_table;
     for (Square sq = SQ_A1; sq <= SQ_H7; sq++) {
         Bitboard mask = general_mask(sq);
         uint8_t index_bits = bb_popcnt(mask);
@@ -186,7 +199,7 @@ void init_slider_attacks(State *state) {
             };
 
             if (try_magic(sq, &entry)) {
-                state->magics[sq] = entry;
+                magics[sq] = entry;
                 ptr += (1 << (64 - entry.offset));
                 break;
             }
@@ -233,10 +246,10 @@ static inline void insert_sequence(Move sequence, uint8_t value, MoveList *captu
     if (capture_info->max_value == 0 || value > capture_info->max_value) {
         capture_info->max_value = value;
         capture_list->size = 1;
-        capture_list->moves[0] = sequence;
+        capture_list->elems[0] = sequence;
     } else if (value == capture_info->max_value) {
         for (int i = 0; i < capture_list->size; i++) {
-            Move other_sequence = capture_list->moves[i];
+            Move other_sequence = capture_list->elems[i];
 
             if (sequence.from == other_sequence.from && sequence.to == other_sequence.to && sequence.captures ==
                 other_sequence.captures) {
@@ -244,7 +257,7 @@ static inline void insert_sequence(Move sequence, uint8_t value, MoveList *captu
             }
         }
 
-        capture_list->moves[capture_list->size++] = sequence;
+        list_push(capture_list, sequence);
     }
 }
 
@@ -261,13 +274,13 @@ static inline void setup_capture_search(Position *pos, Bitboard *my_pieces, Bitb
     *combined = *my_pieces | *enemy_pieces;
 }
 
-void find_king_captures(State *state, Position *pos, Move sequence, uint8_t value, MoveList *capture_list, CaptureInfo *capture_info) {
+void find_king_captures(Position *pos, Move sequence, uint8_t value, MoveList *capture_list, CaptureInfo *capture_info) {
     Bitboard my_pieces, enemy_pieces, combined;
     setup_capture_search(pos, &my_pieces, &enemy_pieces, &combined);
 
     Color color = pos->side_to_move;
     Square from = sequence.to;
-    Bitboard attacks = king_attacks(state, from) & BB_USED;
+    Bitboard attacks = king_attacks(from) & BB_USED;
 
     bool found_capture = false;
 
@@ -294,7 +307,7 @@ void find_king_captures(State *state, Position *pos, Move sequence, uint8_t valu
             .captures = sequence.captures | bb_from_sq(target)
         };
 
-        find_king_captures(state, pos, new_sequence, new_value, capture_list, capture_info);
+        find_king_captures(pos, new_sequence, new_value, capture_list, capture_info);
 
     }
 
@@ -304,13 +317,13 @@ void find_king_captures(State *state, Position *pos, Move sequence, uint8_t valu
     }
 }
 
-void find_general_captures(State *state, Position *pos, Move sequence, uint8_t value, MoveList *capture_list, CaptureInfo *capture_info) {
+void find_general_captures(Position *pos, Move sequence, uint8_t value, MoveList *capture_list, CaptureInfo *capture_info) {
     Bitboard my_pieces, enemy_pieces, combined;
     setup_capture_search(pos, &my_pieces, &enemy_pieces, &combined);
 
     Color color = pos->side_to_move;
     Square from = sequence.to;
-    Bitboard attacks = general_attacks(state, from, combined);
+    Bitboard attacks = general_attacks(from, combined);
 
     bool found_capture = false;
 
@@ -356,7 +369,7 @@ void find_general_captures(State *state, Position *pos, Move sequence, uint8_t v
                 .captures = sequence.captures | bb_from_sq(target)
             };
 
-            find_general_captures(state, pos, new_sequence, new_value, capture_list, capture_info);
+            find_general_captures(pos, new_sequence, new_value, capture_list, capture_info);
 
             to += direction;
         }
@@ -368,13 +381,13 @@ void find_general_captures(State *state, Position *pos, Move sequence, uint8_t v
     }
 }
 
-void find_soldier_captures(State *state, Position *pos, Move sequence, uint8_t value, MoveList *capture_list, CaptureInfo *capture_info) {
+void find_soldier_captures(Position *pos, Move sequence, uint8_t value, MoveList *capture_list, CaptureInfo *capture_info) {
     Bitboard my_pieces, enemy_pieces, combined;
     setup_capture_search(pos, &my_pieces, &enemy_pieces, &combined);
 
     Color color = pos->side_to_move;
     Square from = sequence.to;
-    Bitboard attacks = soldier_attacks(state, from) & BB_USED;
+    Bitboard attacks = soldier_attacks(from) & BB_USED;
 
     bool found_capture = false;
 
@@ -401,7 +414,7 @@ void find_soldier_captures(State *state, Position *pos, Move sequence, uint8_t v
             .captures = sequence.captures | bb_from_sq(target)
         };
 
-        find_soldier_captures(state, pos, new_sequence, new_value, capture_list, capture_info);
+        find_soldier_captures(pos, new_sequence, new_value, capture_list, capture_info);
     }
 
     // If no capture
@@ -410,28 +423,29 @@ void find_soldier_captures(State *state, Position *pos, Move sequence, uint8_t v
     }
 }
 
-void append_stacks(State *state, Position *pos, MoveList *move_list, Bitboard stack_targets) {
+void append_stacks(Position *pos, MoveList *move_list, Bitboard stack_targets) {
     Color color = pos->side_to_move;
     Bitboard soldier_it = pos->pieces[color][PIECE_SOLDIER] & BB_USED;
 
     while (soldier_it) {
         Square from = bb_it_next(&soldier_it);
 
-        Bitboard stacks_it = soldier_attacks(state, from) & stack_targets & BB_USED;
+        Bitboard stacks_it = soldier_attacks(from) & stack_targets & BB_USED;
 
         while (stacks_it) {
             Square to = bb_it_next(&stacks_it);
-            move_list->moves[move_list->size++] = (Move){
+            Move move = {
                 .from = from,
                 .to = to,
                 .captures = BB_EMPTY,
             };
+            list_push(move_list, move);
         }
     }
 }
 
-void legal_moves(State *state, Position *pos, MoveList *move_list) {
-    move_list->size = 0;
+void legal_moves(Position *pos, MoveList *move_list) {
+    list_clear(move_list);
 
     Color color = pos->side_to_move;
 
@@ -452,7 +466,7 @@ void legal_moves(State *state, Position *pos, MoveList *move_list) {
             stacks_target |= pos->pieces[color][PIECE_GENERAL];
         }
 
-        append_stacks(state, pos, move_list, stacks_target);
+        append_stacks(pos, move_list, stacks_target);
         return;
     }
 
@@ -470,7 +484,7 @@ void legal_moves(State *state, Position *pos, MoveList *move_list) {
                 .to = from,
             };
 
-            find_king_captures(state, pos, sequence, 0, move_list, &capture_info);
+            find_king_captures(pos, sequence, 0, move_list, &capture_info);
         }
     } {
         Bitboard general_it = pos->pieces[color][PIECE_GENERAL] & BB_USED;
@@ -483,7 +497,7 @@ void legal_moves(State *state, Position *pos, MoveList *move_list) {
                 .to = from,
             };
 
-            find_general_captures(state, pos, sequence, 0, move_list, &capture_info);
+            find_general_captures(pos, sequence, 0, move_list, &capture_info);
         }
     } {
         Bitboard soldier_it = pos->pieces[color][PIECE_SOLDIER] & BB_USED;
@@ -496,7 +510,7 @@ void legal_moves(State *state, Position *pos, MoveList *move_list) {
                 .to = from,
             };
 
-            find_soldier_captures(state, pos, sequence, 0, move_list, &capture_info);
+            find_soldier_captures(pos, sequence, 0, move_list, &capture_info);
         }
     }
 
@@ -507,12 +521,12 @@ void legal_moves(State *state, Position *pos, MoveList *move_list) {
     // No captures were found, looking for stack moves
     if (pos->can_create_general) {
         Bitboard stacks_target = pos->pieces[color][PIECE_SOLDIER];
-        append_stacks(state, pos, move_list, stacks_target);
+        append_stacks(pos, move_list, stacks_target);
     }
 
     if (pos->can_create_king) {
         Bitboard stacks_target = pos->pieces[color][PIECE_GENERAL];
-        append_stacks(state, pos, move_list, stacks_target);
+        append_stacks(pos, move_list, stacks_target);
     }
 
     // Normal moves
@@ -520,102 +534,105 @@ void legal_moves(State *state, Position *pos, MoveList *move_list) {
     Bitboard kings_it = pos->pieces[color][PIECE_KING] & BB_USED;
     while (kings_it) {
         Square from = bb_it_next(&kings_it);
-        Bitboard attacks_it = king_attacks(state, from) & ~combined & BB_USED;
+        Bitboard attacks_it = king_attacks(from) & ~combined & BB_USED;
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list->moves[move_list->size++] = (Move){
+            Move move = {
                 .from = from,
                 .to = to,
                 .captures = BB_EMPTY,
             };
+            list_push(move_list, move);
         }
     }
 
     Bitboard generals_it = pos->pieces[color][PIECE_GENERAL] & BB_USED;
     while (generals_it) {
         Square from = bb_it_next(&generals_it);
-        Bitboard attacks_it = general_attacks(state, from, combined) & ~combined & BB_USED;
+        Bitboard attacks_it = general_attacks(from, combined) & ~combined & BB_USED;
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list->moves[move_list->size++] = (Move){
+            Move move = {
                 .from = from,
                 .to = to,
                 .captures = BB_EMPTY,
             };
+            list_push(move_list, move);
         }
     }
 
     Bitboard soldier_it = pos->pieces[color][PIECE_SOLDIER] & BB_USED;
     while (soldier_it) {
         Square from = bb_it_next(&soldier_it);
-        Bitboard attacks_it = soldier_attacks(state, from) & ~combined & BB_USED;
+        Bitboard attacks_it = soldier_attacks(from) & ~combined & BB_USED;
 
         while (attacks_it) {
             Square to = bb_it_next(&attacks_it);
-            move_list->moves[move_list->size++] = (Move){
+            Move move = {
                 .from = from,
                 .to = to,
                 .captures = BB_EMPTY,
             };
+            list_push(move_list, move);
         }
     }
 }
 
-uint64_t perft_aux(State *state, Position *position, int depth) {
-    if (depth == 0 || position_is_game_over(position)) {
-        return 1ULL;
-    }
+// uint64_t perft_aux(Position *position, int depth) {
+//     if (depth == 0 || position_state(position)) {
+//         return 1ULL;
+//     }
+//
+//     MoveList move_list = {0};
+//     legal_moves(position, &move_list);
+//
+//     uint64_t num_nodes = 0;
+//
+//     for (int i = 0; i < move_list.size; i++) {
+//         Position new_position = make_move(position,  move_list.elems[i]);
+//         num_nodes += perft_aux(&new_position, depth - 1);
+//     }
+//
+//     return num_nodes;
+// }
+//
+//
+// uint64_t perft(Position *position, int depth, bool debug) {
+//     if (depth == 0 || position_state(position)) {
+//         return 1ULL;
+//     }
+//
+//     MoveList move_list = {0};
+//     legal_moves(position, &move_list);
+//
+//     uint64_t num_nodes = 0;
+//
+//     char from[3];
+//     char to[3];
+//
+//     for (int i = 0; i < move_list.size; i++) {
+//         Position new_position = make_move(position, move_list.elems[i]);
+//
+//         if (debug) {
+//             sq_to_string(move_list.elems[i].from, from);
+//             sq_to_string(move_list.elems[i].to, to);
+//         }
+//
+//         uint64_t move_num_nodes = perft_aux(&new_position, depth - 1);
+//
+//         if (debug) {
+//             printf("%s-%s: %lu\n", from, to, move_num_nodes);
+//         }
+//
+//         num_nodes += move_num_nodes;
+//     }
+//
+//     return num_nodes;
+// }
 
-    MoveList move_list = {0};
-    legal_moves(state, position, &move_list);
-
-    uint64_t num_nodes = 0;
-
-    for (int i = 0; i < move_list.size; i++) {
-        Position new_position = make_move(state, position, move_list.moves[i]);
-        num_nodes += perft_aux(state, &new_position, depth - 1);
-    }
-
-    return num_nodes;
-}
-
-
-uint64_t perft(State *state, Position *position, int depth, bool debug) {
-    if (depth == 0 || position_is_game_over(position)) {
-        return 1ULL;
-    }
-
-    MoveList move_list = {0};
-    legal_moves(state, position, &move_list);
-
-    uint64_t num_nodes = 0;
-
-    char from[3];
-    char to[3];
-
-    for (int i = 0; i < move_list.size; i++) {
-        Position new_position = make_move(state, position, move_list.moves[i]);
-
-        if (debug) {
-            sq_to_string(move_list.moves[i].from, from);
-            sq_to_string(move_list.moves[i].to, to);
-        }
-
-        uint64_t move_num_nodes = perft_aux(state, &new_position, depth - 1);
-
-        if (debug) {
-            printf("%s-%s: %lu\n", from, to, move_num_nodes);
-        }
-
-        num_nodes += move_num_nodes;
-    }
-
-    return num_nodes;
-}
-
-void movegen_init(State *state) {
-    init_leaper_attacks(state);
-    init_slider_attacks(state);
+void movegen_init() {
+    init_leaper_attacks();
+    init_slider_attacks();
 }

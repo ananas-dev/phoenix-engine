@@ -3,33 +3,65 @@
 #include "core.h"
 #include "bitboard.h"
 #include "move.h"
-#include "state.h"
+#include "nnue.h"
 
-#define FEN_START "SSSSSS2/SSSSS2s/SSSS2ss/SSS2sss/SS2ssss/S2sssss/2ssssss 0 w 00"
+#define FEN_START "SSSSSS2/SSSSS2s/SSSS2ss/SSS2sss/SS2ssss/S2sssss/2ssssss 0 0 w 00"
 
 typedef struct {
     Bitboard pieces[NUM_COLOR][NUM_PIECE];
+    Accumulator accumulators[NUM_COLOR];
+    uint64_t hash;
     uint16_t ply;
+    uint16_t half_move_clock;
     Color side_to_move;
     bool can_create_general;
     bool can_create_king;
-    uint64_t hash;
 } Position;
 
-void position_init(State *state);
+void position_init();
 
-static inline bool position_is_game_over(Position *pos) {
-    if (pos->ply >= 10) {
-        return bb_popcnt(pos->pieces[1 - pos->side_to_move][PIECE_KING] & BB_USED) == 0;
+static inline GameState position_state(Position *pos) {
+    if (pos->half_move_clock >= 50) {
+        return STATE_DRAW;
     }
 
-    return false;
+    if (pos->ply >= 10 && bb_popcnt(pos->pieces[1 - pos->side_to_move][PIECE_KING] & BB_USED) == 0) {
+        return STATE_WIN;
+    }
+
+    Bitboard *white_pieces = pos->pieces[COLOR_WHITE];
+    Bitboard *black_pieces = pos->pieces[COLOR_BLACK];
+    bool no_white_piece = bb_is_empty(white_pieces[PIECE_SOLDIER] | white_pieces[PIECE_GENERAL] | white_pieces[PIECE_KING]);
+    bool no_black_piece = bb_is_empty(black_pieces[PIECE_SOLDIER] | black_pieces[PIECE_GENERAL] | black_pieces[PIECE_KING]);
+
+    if (no_white_piece && no_black_piece) {
+        return STATE_DRAW;
+    }
+
+    if (no_white_piece) {
+        return pos->side_to_move == COLOR_WHITE ? STATE_LOSS : STATE_WIN;
+    }
+
+    if (no_black_piece) {
+        return pos->side_to_move == COLOR_BLACK ? STATE_LOSS : STATE_WIN;
+    }
+
+    return STATE_ONGOING;
 }
 
 static inline Bitboard pieces_by_color(Position *pos, Color color) {
     return pos->pieces[color][PIECE_SOLDIER] | pos->pieces[color][PIECE_GENERAL] | pos->pieces[color][PIECE_KING];
 }
 
-Position make_move(State *state, Position *pos, Move move);
-Position position_from_fen(const char *fen_str);
+static inline int count_pieces(Position *pos, Piece piece_type) {
+    return bb_popcnt(pos->pieces[COLOR_WHITE][piece_type]) + bb_popcnt(pos->pieces[COLOR_BLACK][piece_type]);
+}
+
+Position make_move(Position *pos, Network *net,  Move move);
+Position position_from_fen(const char *fen_str, Network *net);
+Position position_from_fen_core(const char *fen_str);
+uint64_t position_hash(const Position *position);
+char *position_to_fen(const Position *position);
+
 void position_print(Position *pos);
+

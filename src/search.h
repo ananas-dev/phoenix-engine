@@ -3,4 +3,9 @@
 #include "position.h"
 #include "state.h"
 
-Move search(State *state, Position *position, double max_time_seconds);
+typedef struct {
+    Move best_move;
+    int32_t score;
+} SearchResult;
+
+SearchResult search(State *state);

@@ -10,7 +10,7 @@ typedef struct {
 
 typedef struct {
     int size;
-    Move moves[128];
+    Move elems[128];
 } MoveList;
 
 typedef enum {
@@ -34,3 +34,5 @@ static inline void packed_move_extract(PackedMove move, PackedMoveFlag *flag, Sq
 }
 
 void move_print(Move move);
+char* move_to_uci(Move move);
+Move uci_to_move(const char* uci);

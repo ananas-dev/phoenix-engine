@@ -1,4 +1,6 @@
-# Clippy
+# Clippy NNUE
+
+Strong engine for the fenix board game
 
 ```
  __                 
@@ -10,6 +12,8 @@
 |\_/|     
 \___/
 ```
+
+
 ## Inspirations and resources
 
 - The tetris IA we build for a hackathon: https://github.com/ananas-dev/denis
